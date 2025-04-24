@@ -23,7 +23,7 @@ class LoginPage(tk.Frame):
             self.llnl_img = ImageTk.PhotoImage(llnl_image)
             canvas.create_image(960, 150, image=self.llnl_img)
         except:
-            canvas.create_text(960, 100, text="LLNL Logo", fill="#000", font=("Segoe UI", 20))
+            canvas.create_text(960, 100, text="LLNL Logo", fill="#000", font=("Poppins", 20))
 
         # === USERNAME Entry ===
         self.username = self.create_input_with_icon(
@@ -48,14 +48,14 @@ class LoginPage(tk.Frame):
             text="LOGIN",
             bg="#275ea7",
             fg="white",
-            font=("Segoe UI", 11, "bold"),
+            font=("Poppins", 11, "bold"),
             bd=0,
             command=self.authenticate
         )
         login_btn.place(x=720, y=login_y, width=442, height=66)
 
         # === Forgot Password ===
-        canvas.create_text(720 + 390, login_y + 66 + 16, text="Forgot password?", fill="#275ea7", font=("Segoe UI", 9))
+        canvas.create_text(720 + 390, login_y + 66 + 16, text="Forgot password?", fill="#275ea7", font=("Poppins", 9))
 
         # === UC Davis Seal ===
         try:
@@ -63,7 +63,7 @@ class LoginPage(tk.Frame):
             self.seal_img = ImageTk.PhotoImage(seal_image)
             canvas.create_image(475, 780, image=self.seal_img)
         except:
-            canvas.create_text(160, 780, text="UC Davis", fill="white", font=("Segoe UI", 18))
+            canvas.create_text(160, 780, text="UC Davis", fill="white", font=("Poppins", 18))
 
     def create_input_with_icon(self, icon_file, placeholder, x, y):
         """Creates a single-line input with an icon on the left"""
@@ -78,10 +78,10 @@ class LoginPage(tk.Frame):
             tk.Label(container, image=icon_img, bg="white").place(x=29, y=19)
         except:
             fallback = "👤" if "user" in icon_file else "🔒"
-            tk.Label(container, text=fallback, font=("Segoe UI", 12), bg="white").place(x=29, y=19)
+            tk.Label(container, text=fallback, font=("Poppins", 12), bg="white").place(x=29, y=19)
 
         # Entry Field
-        entry = tk.Entry(container, font=("Segoe UI", 11), bd=0, fg="gray")
+        entry = tk.Entry(container, font=("Poppins", 11), bd=0, fg="gray")
         entry.insert(0, placeholder)
         entry.place(x=125, y=18, width=290, height=30)
         entry.placeholder = placeholder
@@ -110,7 +110,7 @@ class LoginPage(tk.Frame):
     def authenticate(self):
         username = self.username.get()
         password = self.password.get()
-        if username == "admin" and password == "1234":
+        if username == "a" and password == "1":
             self.switch_to_dashboard()
         else:
             messagebox.showerror("Login Failed", "Invalid username or password")

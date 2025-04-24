@@ -1,77 +1,66 @@
 import tkinter as tk
-from tkinter import ttk
+from PIL import Image, ImageTk
 from pathlib import Path
 
 class DashboardPage(tk.Frame):
     def __init__(self, master):
-        super().__init__(master, bg="#F0F0F0")
+        super().__init__(master)
+        self.assets_path = Path(__file__).resolve().parent.parent / "assets"
 
+        self.configure(bg="white")
         self.place(relwidth=1, relheight=1)
-        canvas = tk.Canvas(self, bg="#F0F0F0", height=900, width=1440, bd=0, highlightthickness=0)
-        canvas.place(x=0, y=0)
 
-        # Sidebar
-        canvas.create_rectangle(0, 0, 280, 900, fill="#005DAB", outline="")
-        canvas.create_rectangle(0, 270, 294, 867, fill="#000000", outline="")
-        canvas.create_rectangle(55, 42, 225, 212, fill="#FFFFFF", outline="")
-        canvas.create_text(344, 42, anchor="nw", text="Dashboard", fill="#353535", font=("Segoe UI", 36, "bold"))
+        # === Sidebar Frame ===
+        sidebar_width = 297
+        sidebar = tk.Frame(self, bg="#005DAA", width=sidebar_width, height=900)
+        sidebar.place(x=0, y=0)
 
-        layout = {
-            "chamber_data": (343, 102, 328, 240),
-            "system_status": (720, 102, 656, 325),
-            "system_metrics": (342, 366, 328, 240),
-            "valves": (344, 630, 328, 240),
-            "chart_area": (720, 486, 656, 350),
-        }
+        # === LLNL Circle Logo ===
+        try:
+            logo = Image.open(self.assets_path / "LLNL Logo Circle.png").resize((170, 170))
+            self.logo_img = ImageTk.PhotoImage(logo)
+            tk.Label(sidebar, image=self.logo_img, bg="#005DAA").place(x=(sidebar_width - 170) // 2, y=30)
+        except:
+            tk.Label(sidebar, text="LLNL", bg="#005DAA", fg="white", font=("Poppins", 16)).place(x=20, y=40)
 
-        # Chamber Data
-        x, y, w, h = layout["chamber_data"]
-        chamber = tk.Frame(self, bg="white")
-        chamber.place(x=x, y=y, width=w, height=h)
-        tk.Label(chamber, text="Chamber Data", font=("Segoe UI", 14, "bold"), bg="white").pack(pady=10)
+        # === Sidebar Buttons ===
+        buttons = [
+            ("Dashboard", "Selected Dashboard Button Icon.png"),
+            ("Live Data", "Live Data Button Icon.png"),
+            ("Run Test", "Run Test Button Icon.png"),
+            ("Reports", "Reports Button Icon.png"),
+            ("Layout", "Layout Button Icon.png"),
+            ("Settings", "Settings Button Icon.png"),
+            ("Logout", "Logout Button Icon.png"),
+        ]
 
-        # System Status
-        x, y, w, h = layout["system_status"]
-        status = tk.Frame(self, bg="white")
-        status.place(x=x, y=y, width=w, height=h)
-        tk.Label(status, text="System Status", font=("Segoe UI", 14, "bold"), bg="white").pack(pady=10)
-        for label, value, color in [
-            ("Chamber:", "Sealed", "green"),
-            ("Leak Detector:", "Sealed", "green"),
-            ("Pump:", "Not Active", "red"),
-        ]:
-            row = tk.Frame(status, bg="white")
-            row.pack(anchor="w", padx=20, pady=5)
-            tk.Label(row, text=label, font=("Segoe UI", 11), bg="white").pack(side="left")
-            tk.Label(row, text=value, font=("Segoe UI", 11, "bold"), fg=color, bg="white").pack(side="left")
+        base_y = 275  # Start below logo
+        spacing = 72
 
-        # System Metrics
-        x, y, w, h = layout["system_metrics"]
-        metrics = tk.Frame(self, bg="white")
-        metrics.place(x=x, y=y, width=w, height=h)
-        tk.Label(metrics, text="System Metrics", font=("Segoe UI", 14, "bold"), bg="white").pack(pady=10)
-        for val in ["110 PSI", "27°C"]:
-            row = tk.Frame(metrics, bg="white")
-            row.pack(anchor="w", padx=20, pady=5)
-            tk.Label(row, text=val, font=("Segoe UI", 11), bg="white").pack(side="left")
-            ttk.Progressbar(row, length=180).pack(side="left", padx=10)
-        tk.Label(metrics, text="Leak Rate: 2.1x10⁶", bg="white").pack(pady=5)
-        tk.Label(metrics, text="Status: OK", fg="green", bg="white", font=("Segoe UI", 11, "bold")).pack()
+        for i, (text, icon_file) in enumerate(buttons):
+            # Add extra 93px after Layout
+            if text == "Settings":
+                base_y += 93 - spacing
 
-        # Valves
-        x, y, w, h = layout["valves"]
-        valves = tk.Frame(self, bg="white")
-        valves.place(x=x, y=y, width=w, height=h)
-        tk.Label(valves, text="Valves", font=("Segoe UI", 14, "bold"), bg="white").pack(pady=10)
-        grid = tk.Frame(valves, bg="white")
-        grid.pack()
-        valve_names = ["He", "N2", "Vo", "W", "C1", "C2", "T1", "T2", "T3", "T4"]
-        for i, name in enumerate(valve_names):
-            color = "green" if "T" not in name else "gray"
-            tk.Button(grid, text=name, bg=color, fg="white", width=4).grid(row=i//5, column=i%5, padx=5, pady=5)
+            self.create_sidebar_button(
+                parent=sidebar,
+                text=text,
+                icon_file=icon_file,
+                y=base_y + i * spacing,
+                sidebar_width=sidebar_width
+            )
 
-        # Chart Area
-        x, y, w, h = layout["chart_area"]
-        chart = tk.Frame(self, bg="white")
-        chart.place(x=x, y=y, width=w, height=h)
-        tk.Label(chart, text="(Chart/Graph Placeholder)", font=("Segoe UI", 14), bg="white").pack(pady=20)
+    def create_sidebar_button(self, parent, text, icon_file, y, sidebar_width):
+        try:
+            icon = Image.open(self.assets_path / icon_file).resize((24, 24))
+            icon_img = ImageTk.PhotoImage(icon)
+            setattr(self, f"{text.lower().replace(' ', '_')}_icon", icon_img)
+        except:
+            icon_img = None
+
+        container = tk.Frame(parent, bg="#005DAA", width=250, height=48)
+        container.place(x=(sidebar_width - 200) // 2, y=y)
+
+        if icon_img:
+            tk.Label(container, image=icon_img, bg="#005DAA").pack(side="left", padx=(0, 30))
+        tk.Label(container, text=text, fg="white", bg="#005DAA", font=("Poppins", 12, "bold")).pack(side="left")

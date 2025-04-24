@@ -1,31 +1,32 @@
 import tkinter as tk
-from pages.login import LoginPage  # ✅ Use your login page
+from pages.login import LoginPage
+from pages.dashboard import DashboardPage
 
-class App(tk.Tk):
+class TargetTestingApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Target Testing Station GUI")
         self.geometry("1440x900")
-        self.resizable(False, False)
-        self.configure(bg="#002855")
+        self.title("Target Testing Station")
 
-        self.current_page = None
-        self.switch_to_login()
+        self.container = tk.Frame(self)
+        self.container.pack(fill="both", expand=True)
 
-    def switch_to_login(self):
-        if self.current_page:
-            self.current_page.destroy()
-        self.current_page = LoginPage(self, self.switch_to_dashboard)
-        self.current_page.pack(fill="both", expand=True)
+        self.show_login()
 
-    def switch_to_dashboard(self):
-        if self.current_page:
-            self.current_page.destroy()
-        frame = tk.Frame(self, bg="#F0F0F0")
-        tk.Label(frame, text="Dashboard Placeholder", font=("Segoe UI", 24), bg="#F0F0F0").pack(pady=40)
-        frame.pack(fill="both", expand=True)
-        self.current_page = frame
+    def show_login(self):
+        self.clear_frame()
+        self.login_page = LoginPage(self.container, self.show_dashboard)
+        self.login_page.pack(fill="both", expand=True)
+
+    def show_dashboard(self):
+        self.clear_frame()
+        self.dashboard_page = DashboardPage(self.container)
+        self.dashboard_page.pack(fill="both", expand=True)
+
+    def clear_frame(self):
+        for widget in self.container.winfo_children():
+            widget.destroy()
 
 if __name__ == "__main__":
-    app = App()
+    app = TargetTestingApp()
     app.mainloop()

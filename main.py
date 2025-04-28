@@ -1,6 +1,6 @@
 import tkinter as tk
-from pages.login import LoginPage
 from pages.dashboard import DashboardPage
+# from pages.login import LoginPage   # ← no need to import login right now
 
 class TargetTestingApp(tk.Tk):
     def __init__(self):
@@ -11,7 +11,7 @@ class TargetTestingApp(tk.Tk):
         self.container = tk.Frame(self)
         self.container.pack(fill="both", expand=True)
 
-        self.show_login()
+        self.show_dashboard()  # 🚀 directly show dashboard!
 
     def show_login(self):
         self.clear_frame()

@@ -1,73 +1,62 @@
 import tkinter as tk
 from PIL import Image, ImageTk
 from pathlib import Path
+import requests
+import time
+from collections import deque
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.pyplot as plt
+import numpy as np
 
-# === System Metrics Card ===
-import tkinter as tk
-from PIL import Image, ImageTk
-from pathlib import Path
-
-# === System Metrics Card ===
+# === SystemMetrics ===
 class SystemMetrics(tk.Canvas):
     def __init__(self, parent):
         parent_width = parent.winfo_reqwidth() or 1440
         parent_height = parent.winfo_reqheight() or 900
 
-        width = int(0.47 * parent_width) + 30  # Expand by 30px
+        width = int(0.47 * parent_width) + 30
         height = int(0.37 * parent_height)
 
         super().__init__(parent, width=width, height=height, bg="#D9D9D9", highlightthickness=0)
         self.width = width
         self.height = height
-
         self.assets_path = Path(__file__).resolve().parent.parent / "assets"
 
-        user_icon_path = self.assets_path / "hugeicons_gas-pipe.png"
-        user_icon = Image.open(user_icon_path).resize((40, 40))
+        user_icon = Image.open(self.assets_path / "hugeicons_gas-pipe.png").resize((40, 40))
         self.user_icon_img = ImageTk.PhotoImage(user_icon)
 
-        check_icon_path = self.assets_path / "StatusCheckIcon.png"
-        check_icon = Image.open(check_icon_path).resize((50, 50))
+        check_icon = Image.open(self.assets_path / "StatusCheckIcon.png").resize((50, 50))
         self.check_icon_img = ImageTk.PhotoImage(check_icon)
 
         self.place(x=0, y=0)
-        self.draw_rounded_tab()
-        self.embed_metrics_frame()
 
-    def draw_rounded_tab(self):
-        radius = 25
-        self.create_round_rect(0, 0, self.width, self.height, radius, fill='white', outline='white')
+    def embed_metrics_frame_dynamic(self, temperature, pressure):
+        for widget in self.winfo_children():
+            widget.destroy()
 
-    def embed_metrics_frame(self):
         frame = tk.Frame(self, bg='white', width=self.width, height=self.height)
         frame.place(x=0, y=0)
 
-        pressure = 110
-        temperature = 27
-
-        # Header
         tk.Label(frame, text="System Metrics", font=('Poppins', 16, 'bold'), bg='white').place(x=25, y=18)
         tk.Label(frame, image=self.user_icon_img, bg='white').place(x=self.width - 70, y=18)
 
-        self.draw_metric(frame, "110 Psi", "#F58F8F", "#FFD3D3", pressure, 155, 30, 80)
-        self.draw_metric(frame, "27 °C", "#5B93F5", "#A9D0FF", temperature, 50, 30, 150)
+        self.draw_metric(frame, f"{pressure:.0f} Psi", "#F58F8F", "#FFD3D3", pressure, 155, 30, 80)
+        self.draw_metric(frame, f"{temperature:.0f} °C", "#5B93F5", "#A9D0FF", temperature, 50, 30, 150)
 
-        # Leak Rate and Status
         tk.Label(frame, text="Leak Rate:", font=('Poppins', 14, 'bold'), bg='white').place(x=90, y=230)
         tk.Label(frame, text="2.1 x 10⁻⁹", font=('Poppins', 14, 'bold'), fg='green', bg='white').place(x=100, y=265)
 
         tk.Label(frame, text="Status:", font=('Poppins', 14, 'bold'), bg='white').place(x=310, y=230)
         tk.Label(frame, text="OK", font=('Poppins', 16, 'bold'), fg='green', bg='white').place(x=390, y=230)
-
         tk.Label(frame, image=self.check_icon_img, bg='white').place(x=self.width - 225, y=270)
 
     def draw_metric(self, parent, label_text, label_color, bar_color, value, max_value, x, y):
         label_width = 92
-        bar_width = self.width - label_width - 61  # Adjusted
+        bar_width = self.width - label_width - 61
         height = 50
         radius = 25
 
-        filled_ratio = value / max_value
+        filled_ratio = min(value / max_value, 1.0)
         filled_width = int(bar_width * filled_ratio)
 
         label = tk.Canvas(parent, width=label_width, height=height, bg='white', highlightthickness=0)
@@ -81,27 +70,15 @@ class SystemMetrics(tk.Canvas):
         bar_canvas.place(x=x + label_width + 1, y=y)
 
         self.draw_rounded_bar(bar_canvas, 0, 0, bar_width, height, "#EAEAEA", radius)
-
         if filled_width > 0:
-            self.draw_rounded_bar(bar_canvas, 0, 0, filled_width, height, bar_color,
-                                  radius if filled_width >= bar_width else 0)
+            self.draw_rounded_bar(bar_canvas, 0, 0, filled_width, height, bar_color, radius if filled_width >= bar_width else 0)
 
     def draw_rounded_bar(self, canvas, x, y, width, height, color, round_right=25):
         canvas.create_rectangle(x, y, x + width - round_right, y + height, fill=color, outline=color)
         if round_right > 0:
-            canvas.create_arc(x + width - 2 * round_right, y, x + width, y + height,
-                              start=270, extent=180, fill=color, outline=color)
-
-    def create_round_rect(self, x1, y1, x2, y2, r=25, **kwargs):
-        self.create_arc(x1, y1, x1 + 2 * r, y1 + 2 * r, start=90, extent=90, **kwargs)
-        self.create_arc(x2 - 2 * r, y1, x2, y1 + 2 * r, start=0, extent=90, **kwargs)
-        self.create_arc(x2 - 2 * r, y2 - 2 * r, x2, y2, start=270, extent=90, **kwargs)
-        self.create_arc(x1, y2 - 2 * r, x1 + 2 * r, y2, start=180, extent=90, **kwargs)
-        self.create_rectangle(x1 + r, y1, x2 - r, y2, **kwargs)
-        self.create_rectangle(x1, y1 + r, x2, y2 - r, **kwargs)
+            canvas.create_arc(x + width - 2 * round_right, y, x + width, y + height, start=270, extent=180, fill=color, outline=color)
 
 
-# === Valves Status Section ===
 class ValvesStatus(tk.Canvas):
     def __init__(self, parent):
         parent_width = parent.winfo_reqwidth() or 1440
@@ -190,54 +167,50 @@ class ValvesStatus(tk.Canvas):
         self.create_rectangle(x1 + r, y1, x2 - r, y2, **kwargs)
         self.create_rectangle(x1, y1 + r, x2, y2 - r, **kwargs)
 
-        # === Chamber Data Section ===
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import matplotlib.pyplot as plt
-
+# === ChamberData ===
 class ChamberData(tk.Canvas):
     def __init__(self, parent):
         parent_width = parent.winfo_reqwidth() or 1440
         parent_height = parent.winfo_reqheight() or 900
 
-        width = int(0.6 * parent_width)  
-        height = int(0.45 * parent_height)     
+        width = int(0.6 * parent_width)
+        height = int(0.45 * parent_height)
 
         super().__init__(parent, width=width, height=height, bg="#D9D9D9", highlightthickness=0)
         self.width = width
         self.height = height
 
         self.assets_path = Path(__file__).resolve().parent.parent / "assets"
+        self.place(x=0, y=30)
 
-        self.place(x=0, y=30)  # Move down by 10px
+    def update_graph(self, time_minutes, pressure_psi):
+        # Keep only last 2 hours (120 minutes) of data
+        recent_time = []
+        recent_pressure = []
+        for t, p in zip(time_minutes, pressure_psi):
+            if time_minutes[-1] - t <= 120:
+                recent_time.append(t)
+                recent_pressure.append(p)
 
-        self.draw_rounded_tab()
-        self.embed_graph_frame()
+        for widget in self.winfo_children():
+            widget.destroy()
 
-    def draw_rounded_tab(self):
-        radius = 25
-        self.create_round_rect(0, 0, self.width, self.height, radius, fill='white', outline='white')
-
-    def embed_graph_frame(self):
         frame = tk.Frame(self, bg='white', width=self.width, height=self.height)
         frame.place(x=0, y=0)
 
-        # Title
         tk.Label(frame, text="Chamber Data", font=('Poppins', 16, 'bold'), bg='white').place(x=25, y=18)
 
-        # Expand Icon
+        if getattr(self.master.master, "is_fallback", False):
+             tk.Label(frame, text="⚠ Fallback Data Mode", font=('Poppins', 10), fg="red", bg='white').place(x=500, y=35)
+
         try:
-            expand_icon_path = self.assets_path / "ExpandIcon.png"
-            expand_icon = Image.open(expand_icon_path).resize((30, 30))
+            expand_icon = Image.open(self.assets_path / "ExpandIcon.png").resize((30, 30))
             self.expand_icon_img = ImageTk.PhotoImage(expand_icon)
             tk.Label(frame, image=self.expand_icon_img, bg='white').place(x=self.width - 50, y=18)
         except:
             pass
 
-        # Plot
-        time_minutes = [0, 15, 30, 45, 60, 75, 90, 105, 120, 150, 180, 210, 240]
-        pressure_psi = [15, 20, 35, 80, 45, 60, 5, 55, 40, 95, 65, 75, 110]
-
-        fig, ax = plt.subplots(figsize=(6.2, 3))  # Slightly stretch horizontally (before was 6)
+        fig, ax = plt.subplots(figsize=(6.2, 3))
         ax.plot(time_minutes, pressure_psi, marker='o', linestyle='-', color='blue')
         ax.set_xlabel('Time (mins)')
         ax.set_ylabel('Pressure (Psi)')
@@ -246,19 +219,9 @@ class ChamberData(tk.Canvas):
 
         canvas = FigureCanvasTkAgg(fig, master=frame)
         canvas.draw()
-        canvas_widget = canvas.get_tk_widget()
-        canvas_widget.place(x=20, y=60, width=self.width-40, height=self.height-80)  # Resize based on new width
-
-    def create_round_rect(self, x1, y1, x2, y2, r=25, **kwargs):
-        self.create_arc(x1, y1, x1 + 2 * r, y1 + 2 * r, start=90, extent=90, **kwargs)
-        self.create_arc(x2 - 2 * r, y1, x2, y1 + 2 * r, start=0, extent=90, **kwargs)
-        self.create_arc(x2 - 2 * r, y2 - 2 * r, x2, y2, start=270, extent=90, **kwargs)
-        self.create_arc(x1, y2 - 2 * r, x1 + 2 * r, y2, start=180, extent=90, **kwargs)
-        self.create_rectangle(x1 + r, y1, x2 - r, y2, **kwargs)
-        self.create_rectangle(x1, y1 + r, x2, y2 - r, **kwargs)
+        canvas.get_tk_widget().place(x=20, y=60, width=self.width - 40, height=self.height - 80)
 
 
-# === Dashboard Page ===
 class DashboardPage(tk.Frame):
     def __init__(self, master):
         super().__init__(master)
@@ -274,9 +237,12 @@ class DashboardPage(tk.Frame):
         self.create_sidebar()
         self.create_dashboard_area()
 
-        self.chamber_data = ChamberData(self.dashboard_area)
-        self.chamber_data.place(x=50, y=90)  # Position it nicely
+        self.time_data = deque(np.linspace(0, 150, 30), maxlen=30)
+        self.pressure_data = deque(np.random.uniform(14, 16, 30), maxlen=30)
+        self.start_time = time.time()
 
+        self.is_fallback = True  # Always true with this version
+        self.update_weather_data()
 
     def create_sidebar(self):
         sidebar = tk.Frame(self, bg="#005DAA", width=self.sidebar_width, height=self.window_height)
@@ -305,7 +271,6 @@ class DashboardPage(tk.Frame):
         for i, (text, icon_file) in enumerate(buttons):
             if text == "Settings":
                 base_y += 150 - spacing
-
             self.create_sidebar_button(sidebar, text, icon_file, base_y + i * spacing)
 
     def create_sidebar_button(self, parent, text, icon_file, y):
@@ -327,23 +292,31 @@ class DashboardPage(tk.Frame):
         self.dashboard_area = tk.Frame(self, bg="#D9D9D9", width=self.window_width - self.sidebar_width, height=self.window_height)
         self.dashboard_area.place(x=self.sidebar_width, y=0)
 
-        # 🧽 Clear any old widgets to avoid white residue
-        for widget in self.dashboard_area.winfo_children():
-            widget.destroy()
-
-        # Title
         tk.Label(self.dashboard_area, text="Dashboard", font=("Poppins", 24, "bold"), bg="#D9D9D9").place(x=45, y=15)
 
-        # Cards
         self.chamber_data = ChamberData(self.dashboard_area)
         self.chamber_data.place(x=50, y=80)
 
         self.system_metrics = SystemMetrics(self.dashboard_area)
-        metrics_width = self.system_metrics.width
-        metrics_height = self.system_metrics.height
-        self.system_metrics.place(x=50, y=self.window_height - metrics_height - 30)
+        self.system_metrics.place(x=50, y=self.window_height - self.system_metrics.height - 30)
 
         self.valves_status = ValvesStatus(self.dashboard_area)
-        self.valves_status.place(x=675, y=self.window_height - metrics_height - 30)
+        self.valves_status.place(x=675, y=self.window_height - self.system_metrics.height - 30)
 
+    def update_weather_data(self):
+        from collections import deque
+        import numpy as np
 
+        self.time_data = deque(np.linspace(0, 150, 30), maxlen=30)
+        self.pressure_data = deque(np.random.uniform(14.0, 16.0, 30), maxlen=30)
+        temperature = 28
+        pressure = 15
+
+        print("🧪 Testing fallback:")
+        print("Time data:", list(self.time_data))
+        print("Pressure data:", list(self.pressure_data))
+
+        self.system_metrics.embed_metrics_frame_dynamic(temperature, pressure)
+        self.chamber_data.update_graph(list(self.time_data), list(self.pressure_data))
+
+        self.after(300000, self.update_weather_data)

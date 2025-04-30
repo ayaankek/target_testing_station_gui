@@ -312,9 +312,9 @@ class DashboardPage(tk.Frame):
         temperature = 28
         pressure = 15
 
-        print("🧪 Testing fallback:")
-        print("Time data:", list(self.time_data))
-        print("Pressure data:", list(self.pressure_data))
+        print("🧪 Testing fallback")
+        #print("Time data:", list(self.time_data))
+        #print("Pressure data:", list(self.pressure_data))
 
         self.system_metrics.embed_metrics_frame_dynamic(temperature, pressure)
         self.chamber_data.update_graph(list(self.time_data), list(self.pressure_data))

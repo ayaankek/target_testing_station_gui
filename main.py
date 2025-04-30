@@ -1,6 +1,7 @@
 import tkinter as tk
 from pages.dashboard import DashboardPage
 from pages.login import LoginPage
+import sys
 
 
 class TargetTestingApp(tk.Tk):
@@ -12,7 +13,7 @@ class TargetTestingApp(tk.Tk):
         self.container = tk.Frame(self)
         self.container.pack(fill="both", expand=True)
 
-        self.show_dashboard()  # 🚀 directly show dashboard!
+        self.show_login()  # 🚀 directly show dashboard!
 
     def show_login(self):
         self.clear_frame()
@@ -30,4 +31,5 @@ class TargetTestingApp(tk.Tk):
 
 if __name__ == "__main__":
     app = TargetTestingApp()
+    app.protocol("WM_DELETE_WINDOW", lambda: (app.destroy(), sys.exit()))
     app.mainloop()

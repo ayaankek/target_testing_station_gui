@@ -1,6 +1,7 @@
 import tkinter as tk
 from pages.dashboard import DashboardPage
-# from pages.login import LoginPage   # ← no need to import login right now
+from pages.login import LoginPage
+
 
 class TargetTestingApp(tk.Tk):
     def __init__(self):

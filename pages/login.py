@@ -110,7 +110,7 @@ class LoginPage(tk.Frame):
     def authenticate(self):
         username = self.username.get()
         password = self.password.get()
-        if username == "a" and password == "a":
+        if username == "admin" and password == "1234":
             self.switch_to_dashboard()
         else:
             messagebox.showerror("Login Failed", "Invalid username or password")

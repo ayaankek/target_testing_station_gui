@@ -27,7 +27,7 @@ class SystemMetrics(tk.Canvas):
         self.user_icon_img = ImageTk.PhotoImage(user_icon)
 
         check_icon_path = self.assets_path / "StatusCheckIcon.png"
-        check_icon = Image.open(check_icon_path).resize((42, 42))
+        check_icon = Image.open(check_icon_path).resize((50, 50))
         self.check_icon_img = ImageTk.PhotoImage(check_icon)
 
         self.place(x=0, y=0)
@@ -59,7 +59,7 @@ class SystemMetrics(tk.Canvas):
         tk.Label(frame, text="Status:", font=('Poppins', 14, 'bold'), bg='white').place(x=310, y=230)
         tk.Label(frame, text="OK", font=('Poppins', 16, 'bold'), fg='green', bg='white').place(x=390, y=230)
 
-        tk.Label(frame, image=self.check_icon_img, bg='white').place(x=self.width - 100, y=270)
+        tk.Label(frame, image=self.check_icon_img, bg='white').place(x=self.width - 225, y=270)
 
     def draw_metric(self, parent, label_text, label_color, bar_color, value, max_value, x, y):
         label_width = 92
@@ -190,6 +190,74 @@ class ValvesStatus(tk.Canvas):
         self.create_rectangle(x1 + r, y1, x2 - r, y2, **kwargs)
         self.create_rectangle(x1, y1 + r, x2, y2 - r, **kwargs)
 
+        # === Chamber Data Section ===
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.pyplot as plt
+
+class ChamberData(tk.Canvas):
+    def __init__(self, parent):
+        parent_width = parent.winfo_reqwidth() or 1440
+        parent_height = parent.winfo_reqheight() or 900
+
+        width = int(0.6 * parent_width)  
+        height = int(0.45 * parent_height)     
+
+        super().__init__(parent, width=width, height=height, bg="#D9D9D9", highlightthickness=0)
+        self.width = width
+        self.height = height
+
+        self.assets_path = Path(__file__).resolve().parent.parent / "assets"
+
+        self.place(x=0, y=30)  # Move down by 10px
+
+        self.draw_rounded_tab()
+        self.embed_graph_frame()
+
+    def draw_rounded_tab(self):
+        radius = 25
+        self.create_round_rect(0, 0, self.width, self.height, radius, fill='white', outline='white')
+
+    def embed_graph_frame(self):
+        frame = tk.Frame(self, bg='white', width=self.width, height=self.height)
+        frame.place(x=0, y=0)
+
+        # Title
+        tk.Label(frame, text="Chamber Data", font=('Poppins', 16, 'bold'), bg='white').place(x=25, y=18)
+
+        # Expand Icon
+        try:
+            expand_icon_path = self.assets_path / "ExpandIcon.png"
+            expand_icon = Image.open(expand_icon_path).resize((30, 30))
+            self.expand_icon_img = ImageTk.PhotoImage(expand_icon)
+            tk.Label(frame, image=self.expand_icon_img, bg='white').place(x=self.width - 50, y=18)
+        except:
+            pass
+
+        # Plot
+        time_minutes = [0, 15, 30, 45, 60, 75, 90, 105, 120, 150, 180, 210, 240]
+        pressure_psi = [15, 20, 35, 80, 45, 60, 5, 55, 40, 95, 65, 75, 110]
+
+        fig, ax = plt.subplots(figsize=(6.2, 3))  # Slightly stretch horizontally (before was 6)
+        ax.plot(time_minutes, pressure_psi, marker='o', linestyle='-', color='blue')
+        ax.set_xlabel('Time (mins)')
+        ax.set_ylabel('Pressure (Psi)')
+        ax.grid(True)
+        fig.tight_layout()
+
+        canvas = FigureCanvasTkAgg(fig, master=frame)
+        canvas.draw()
+        canvas_widget = canvas.get_tk_widget()
+        canvas_widget.place(x=20, y=60, width=self.width-40, height=self.height-80)  # Resize based on new width
+
+    def create_round_rect(self, x1, y1, x2, y2, r=25, **kwargs):
+        self.create_arc(x1, y1, x1 + 2 * r, y1 + 2 * r, start=90, extent=90, **kwargs)
+        self.create_arc(x2 - 2 * r, y1, x2, y1 + 2 * r, start=0, extent=90, **kwargs)
+        self.create_arc(x2 - 2 * r, y2 - 2 * r, x2, y2, start=270, extent=90, **kwargs)
+        self.create_arc(x1, y2 - 2 * r, x1 + 2 * r, y2, start=180, extent=90, **kwargs)
+        self.create_rectangle(x1 + r, y1, x2 - r, y2, **kwargs)
+        self.create_rectangle(x1, y1 + r, x2, y2 - r, **kwargs)
+
+
 # === Dashboard Page ===
 class DashboardPage(tk.Frame):
     def __init__(self, master):
@@ -205,6 +273,10 @@ class DashboardPage(tk.Frame):
 
         self.create_sidebar()
         self.create_dashboard_area()
+
+        self.chamber_data = ChamberData(self.dashboard_area)
+        self.chamber_data.place(x=50, y=90)  # Position it nicely
+
 
     def create_sidebar(self):
         sidebar = tk.Frame(self, bg="#005DAA", width=self.sidebar_width, height=self.window_height)
@@ -252,13 +324,26 @@ class DashboardPage(tk.Frame):
         tk.Label(container, text=text, fg="white", bg="#005DAA", font=('Poppins', 12, 'bold')).pack(side="left")
 
     def create_dashboard_area(self):
-        dashboard_area = tk.Frame(self, bg="#D9D9D9", width=self.window_width - self.sidebar_width, height=self.window_height)
-        dashboard_area.place(x=self.sidebar_width, y=0)
+        self.dashboard_area = tk.Frame(self, bg="#D9D9D9", width=self.window_width - self.sidebar_width, height=self.window_height)
+        self.dashboard_area.place(x=self.sidebar_width, y=0)
 
-        self.system_metrics = SystemMetrics(dashboard_area)
+        # 🧽 Clear any old widgets to avoid white residue
+        for widget in self.dashboard_area.winfo_children():
+            widget.destroy()
+
+        # Title
+        tk.Label(self.dashboard_area, text="Dashboard", font=("Poppins", 24, "bold"), bg="#D9D9D9").place(x=45, y=15)
+
+        # Cards
+        self.chamber_data = ChamberData(self.dashboard_area)
+        self.chamber_data.place(x=50, y=80)
+
+        self.system_metrics = SystemMetrics(self.dashboard_area)
         metrics_width = self.system_metrics.width
         metrics_height = self.system_metrics.height
-        self.system_metrics.place(x=50, y=self.window_height - metrics_height - 50)
+        self.system_metrics.place(x=50, y=self.window_height - metrics_height - 30)
 
-        self.valves_status = ValvesStatus(dashboard_area)
-        self.valves_status.place(x=675, y=self.window_height - metrics_height - 50)
+        self.valves_status = ValvesStatus(self.dashboard_area)
+        self.valves_status.place(x=675, y=self.window_height - metrics_height - 30)
+
+

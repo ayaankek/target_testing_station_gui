@@ -65,6 +65,8 @@ class LoginPage(tk.Frame):
         except:
             canvas.create_text(160, 780, text="UC Davis", fill="white", font=("Poppins", 18))
 
+            self.bind_all("<Return>", self.authenticate)
+
     def create_input_with_icon(self, icon_file, placeholder, x, y):
         """Creates a single-line input with an icon on the left"""
         container = tk.Frame(self, bg="white", highlightbackground="#517db8", highlightthickness=1)
@@ -107,7 +109,7 @@ class LoginPage(tk.Frame):
             if entry.is_password:
                 entry.config(show="")
 
-    def authenticate(self):
+    def authenticate(self, event=None):
         username = self.username.get()
         password = self.password.get()
         if username == "admin" and password == "1234":

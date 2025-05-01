@@ -7,6 +7,7 @@ from collections import deque
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import numpy as np
+from tkinter import font
 
 # === SystemMetrics ===
 class SystemMetrics(tk.Canvas):
@@ -201,12 +202,12 @@ class ChamberData(tk.Canvas):
         tk.Label(frame, text="Chamber Data", font=('Poppins', 16, 'bold'), bg='white').place(x=25, y=18)
 
         if getattr(self.master.master, "is_fallback", False):
-             tk.Label(frame, text="⚠ Fallback Data Mode", font=('Poppins', 10), fg="red", bg='white').place(x=500, y=35)
+             tk.Label(frame, text="⚠ Fallback Data Mode", font=('Poppins', 10), fg="red", bg='white').place(x=400, y=35)
 
         try:
-            expand_icon = Image.open(self.assets_path / "ExpandIcon.png").resize((30, 30))
+            expand_icon = Image.open(self.assets_path / "ChamberDataIcon.png").resize((40, 40))
             self.expand_icon_img = ImageTk.PhotoImage(expand_icon)
-            tk.Label(frame, image=self.expand_icon_img, bg='white').place(x=self.width - 50, y=18)
+            tk.Label(frame, image=self.expand_icon_img, bg='white').place(x=self.width - 70, y=18)
         except:
             pass
 
@@ -220,6 +221,46 @@ class ChamberData(tk.Canvas):
         canvas = FigureCanvasTkAgg(fig, master=frame)
         canvas.draw()
         canvas.get_tk_widget().place(x=20, y=60, width=self.width - 40, height=self.height - 80)
+
+# === SystemStatus ===
+class SystemStatus(tk.Canvas):
+    def __init__(self, parent, chamber="Sealed", leak="Sealed", pump="Not Active"):
+        super().__init__(parent, width=306, height=405, bg="white", highlightthickness=0)
+        self.width = 306
+        self.height = 405
+        self.pack_propagate(False)
+        self.configure(borderwidth=0)
+
+        title_font = font.Font(family="Poppins", size=16, weight="bold")
+        label_font = font.Font(family="Poppins", size=13)
+        status_font = font.Font(family="Poppins", size=13, weight="bold")
+
+        try:
+            icon_path = Path(__file__).resolve().parent.parent / "assets" / "SystemStatusIcon.png"
+            system_icon = Image.open(icon_path).resize((35, 35))
+            self.system_icon_img = ImageTk.PhotoImage(system_icon)
+        except:
+            self.system_icon_img = None
+
+        # Title
+        title_frame = tk.Frame(self, bg="white")
+        title_frame.pack(pady=(20, 10), fill="x", padx=20)
+
+        tk.Label(title_frame, text="System Status", font=title_font, bg="white", fg="#333").pack(side="left")
+        if self.system_icon_img:
+            tk.Label(title_frame, image=self.system_icon_img, bg="white").pack(side="right")
+
+        # Status rows
+        def add_status_row(label, value, color):
+            row = tk.Frame(self, bg="white")
+            row.pack(anchor="w", padx=25, pady=5)
+            tk.Label(row, text=f"{label}:", font=label_font, bg="white", fg="#222").pack(side="left")
+            tk.Label(row, text=f"  {value}", font=status_font, bg="white", fg=color).pack(side="left")
+
+        add_status_row("Chamber", chamber, "green" if chamber == "Sealed" else "red")
+        add_status_row("Leak Detector", leak, "green" if leak == "Sealed" else "red")
+        add_status_row("Pump", pump, "red" if pump == "Not Active" else "green")
+
 
 
 class DashboardPage(tk.Frame):
@@ -256,24 +297,30 @@ class DashboardPage(tk.Frame):
             tk.Label(sidebar, text="LLNL", bg="#005DAA", fg="white", font=('Poppins', 16)).place(x=20, y=40)
 
         buttons = [
-            ("Dashboard", "Selected Dashboard Button Icon.png"),
-            ("Live Data", "Live Data Button Icon.png"),
-            ("Run Test", "Run Test Button Icon.png"),
-            ("Reports", "Reports Button Icon.png"),
-            ("Layout", "Layout Button Icon.png"),
-            ("Settings", "Settings Button Icon.png"),
-            ("Logout", "Logout Button Icon.png"),
+            {"text": "Dashboard", "icon": "Selected Dashboard Button Icon.png", "color": "white"},
+            {"text": "Live Data", "icon": "Live Data Button Icon.png", "color": "#6E94C8"},
+            {"text": "Run Test", "icon": "Run Test Button Icon.png", "color": "#6E94C8"},
+            {"text": "Reports", "icon": "Reports Button Icon.png", "color": "#6E94C8"},
+            {"text": "Layout", "icon": "Layout Button Icon.png", "color": "#6E94C8"},
+            {"text": "Settings", "icon": "Settings Button Icon.png", "color": "white"},
+            {"text": "Logout", "icon": "Logout Button Icon.png", "color": "white"},
         ]
 
         base_y = 285
         spacing = 72
 
-        for i, (text, icon_file) in enumerate(buttons):
-            if text == "Settings":
+        for i, button in enumerate(buttons):
+            if button["text"] == "Settings":
                 base_y += 150 - spacing
-            self.create_sidebar_button(sidebar, text, icon_file, base_y + i * spacing)
+            self.create_sidebar_button(
+                sidebar,
+                text=button["text"],
+                icon_file=button["icon"],
+                y=base_y + i * spacing,
+                text_color=button["color"]
+            )
 
-    def create_sidebar_button(self, parent, text, icon_file, y):
+    def create_sidebar_button(self, parent, text, icon_file, y, text_color="white"):
         try:
             icon = Image.open(self.assets_path / icon_file).resize((24, 24))
             icon_img = ImageTk.PhotoImage(icon)
@@ -286,7 +333,7 @@ class DashboardPage(tk.Frame):
 
         if icon_img:
             tk.Label(container, image=icon_img, bg="#005DAA").pack(side="left", padx=(0, 30))
-        tk.Label(container, text=text, fg="white", bg="#005DAA", font=('Poppins', 12, 'bold')).pack(side="left")
+        tk.Label(container, text=text, fg=text_color, bg="#005DAA", font=('Poppins', 12, 'bold')).pack(side="left")
 
     def create_dashboard_area(self):
         self.dashboard_area = tk.Frame(self, bg="#D9D9D9", width=self.window_width - self.sidebar_width, height=self.window_height)
@@ -295,13 +342,17 @@ class DashboardPage(tk.Frame):
         tk.Label(self.dashboard_area, text="Dashboard", font=("Poppins", 24, "bold"), bg="#D9D9D9").place(x=45, y=15)
 
         self.chamber_data = ChamberData(self.dashboard_area)
-        self.chamber_data.place(x=50, y=80)
+        self.chamber_data.place(x=50, y=90)
 
         self.system_metrics = SystemMetrics(self.dashboard_area)
         self.system_metrics.place(x=50, y=self.window_height - self.system_metrics.height - 30)
 
         self.valves_status = ValvesStatus(self.dashboard_area)
         self.valves_status.place(x=675, y=self.window_height - self.system_metrics.height - 30)
+
+        self.system_status = SystemStatus(self.dashboard_area)
+        self.system_status.place(x=795, y=90)
+
 
     def update_weather_data(self):
         from collections import deque
@@ -320,3 +371,4 @@ class DashboardPage(tk.Frame):
         self.chamber_data.update_graph(list(self.time_data), list(self.pressure_data))
 
         self.after(300000, self.update_weather_data)
+

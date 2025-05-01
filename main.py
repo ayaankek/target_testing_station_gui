@@ -13,7 +13,7 @@ class TargetTestingApp(tk.Tk):
         self.container = tk.Frame(self)
         self.container.pack(fill="both", expand=True)
 
-        self.show_login()  # 🚀 directly show dashboard!
+        self.show_dashboard()  # 🚀 directly show dashboard!
 
     def show_login(self):
         self.clear_frame()

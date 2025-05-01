@@ -105,6 +105,7 @@ class ValvesStatus(tk.Canvas):
         self.draw_rounded_tab()
         self.embed_valves_frame()
 
+
     def draw_rounded_tab(self):
         radius = 25
         self.create_round_rect(0, 0, self.width, self.height, radius, fill='white', outline='white')
@@ -272,6 +273,8 @@ class DashboardPage(tk.Frame):
         self.window_height = 900
         self.sidebar_width = int(0.2 * self.window_width)
 
+        self.selected_tab = "Dashboard"
+
         self.configure(bg="#D9D9D9")
         self.place(width=self.window_width, height=self.window_height)
 
@@ -309,18 +312,33 @@ class DashboardPage(tk.Frame):
         base_y = 285
         spacing = 72
 
+        try:
+            bar_icon = Image.open(self.assets_path / "SideMenuSelectionButton.png").resize((8, 48))  # Adjust size to match sidebar button height
+            self.sidebar_bar_img = ImageTk.PhotoImage(bar_icon)
+        except:
+            self.sidebar_bar_img = None
+
         for i, button in enumerate(buttons):
             if button["text"] == "Settings":
                 base_y += 150 - spacing
+
+            y = base_y + i * spacing
+
             self.create_sidebar_button(
                 sidebar,
                 text=button["text"],
                 icon_file=button["icon"],
-                y=base_y + i * spacing,
-                text_color=button["color"]
+                y=y,
+                text_color=button["color"],
+                is_selected=(button["text"] == self.selected_tab)
             )
 
-    def create_sidebar_button(self, parent, text, icon_file, y, text_color="white"):
+            # ⬅️ Place selection bar at left edge
+            if button["text"] == self.selected_tab and self.sidebar_bar_img:
+                tk.Label(sidebar, image=self.sidebar_bar_img, bg="#005DAA").place(x=0, y=y)
+
+
+    def create_sidebar_button(self, parent, text, icon_file, y, text_color="white", is_selected=False):
         try:
             icon = Image.open(self.assets_path / icon_file).resize((24, 24))
             icon_img = ImageTk.PhotoImage(icon)
@@ -334,6 +352,7 @@ class DashboardPage(tk.Frame):
         if icon_img:
             tk.Label(container, image=icon_img, bg="#005DAA").pack(side="left", padx=(0, 30))
         tk.Label(container, text=text, fg=text_color, bg="#005DAA", font=('Poppins', 12, 'bold')).pack(side="left")
+
 
     def create_dashboard_area(self):
         self.dashboard_area = tk.Frame(self, bg="#D9D9D9", width=self.window_width - self.sidebar_width, height=self.window_height)

@@ -265,7 +265,7 @@ class SystemStatus(tk.Canvas):
 
 
 class DashboardPage(tk.Frame):
-    def __init__(self, master):
+    def __init__(self, master, username="Guest"):
         super().__init__(master)
         self.assets_path = Path(__file__).resolve().parent.parent / "assets"
 
@@ -278,6 +278,7 @@ class DashboardPage(tk.Frame):
         self.configure(bg="#D9D9D9")
         self.place(width=self.window_width, height=self.window_height)
 
+        self.username = username
         self.create_sidebar()
         self.create_dashboard_area()
 
@@ -287,6 +288,7 @@ class DashboardPage(tk.Frame):
 
         self.is_fallback = True  # Always true with this version
         self.update_weather_data()
+
 
     def create_sidebar(self):
         sidebar = tk.Frame(self, bg="#005DAA", width=self.sidebar_width, height=self.window_height)
@@ -371,6 +373,28 @@ class DashboardPage(tk.Frame):
 
         self.system_status = SystemStatus(self.dashboard_area)
         self.system_status.place(x=795, y=90)
+
+        # === Username Display (Top Right) ===
+        x_start = self.window_width - self.sidebar_width - 200
+        y_pos = 20
+
+        # Normal part
+        tk.Label(
+            self.dashboard_area,
+            text="Logged in as:",
+            font=("Poppins", 11),
+            fg="#333",
+            bg="#D9D9D9"
+        ).place(x=x_start, y=y_pos)
+
+        # Bold username part
+        tk.Label(
+            self.dashboard_area,
+            text=self.username,
+            font=("Poppins", 12, "bold"),
+            fg="#333",
+            bg="#D9D9D9"
+        ).place(x=x_start + 110, y=y_pos - 1)  # minor alignment tweak
 
 
     def update_weather_data(self):

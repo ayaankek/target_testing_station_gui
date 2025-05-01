@@ -13,17 +13,17 @@ class TargetTestingApp(tk.Tk):
         self.container = tk.Frame(self)
         self.container.pack(fill="both", expand=True)
 
-        self.show_dashboard()  # 🚀 directly show dashboard!
+        self.show_dashboard("admin")  # 🚀 directly show dashboard!
 
     def show_login(self):
         self.clear_frame()
         self.login_page = LoginPage(self.container, self.show_dashboard)
         self.login_page.pack(fill="both", expand=True)
 
-    def show_dashboard(self):
-        self.clear_frame()
-        self.dashboard_page = DashboardPage(self.container)
-        self.dashboard_page.pack(fill="both", expand=True)
+
+    def show_dashboard(self, username):
+        self.dashboard_page = DashboardPage(self.container, username=username)
+        self.dashboard_page.place(x=0, y=0)
 
     def clear_frame(self):
         for widget in self.container.winfo_children():

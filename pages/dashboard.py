@@ -8,6 +8,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import numpy as np
 from tkinter import font
+from pages.side_menu import SideMenu 
 
 # === SystemMetrics ===
 class SystemMetrics(tk.Canvas):
@@ -265,8 +266,10 @@ class SystemStatus(tk.Canvas):
 
 
 class DashboardPage(tk.Frame):
-    def __init__(self, master, username="Guest"):
+    def __init__(self, master, controller, username="admin"):
         super().__init__(master)
+        self.controller = controller
+        self.username = username
         self.assets_path = Path(__file__).resolve().parent.parent / "assets"
 
         self.window_width = 1440
@@ -291,53 +294,7 @@ class DashboardPage(tk.Frame):
 
 
     def create_sidebar(self):
-        sidebar = tk.Frame(self, bg="#005DAA", width=self.sidebar_width, height=self.window_height)
-        sidebar.place(x=0, y=0)
-
-        try:
-            logo = Image.open(self.assets_path / "LLNL Logo Circle.png").resize((170, 170))
-            self.logo_img = ImageTk.PhotoImage(logo)
-            tk.Label(sidebar, image=self.logo_img, bg="#005DAA").place(x=(self.sidebar_width - 170) // 2, y=30)
-        except:
-            tk.Label(sidebar, text="LLNL", bg="#005DAA", fg="white", font=('Poppins', 16)).place(x=20, y=40)
-
-        buttons = [
-            {"text": "Dashboard", "icon": "Selected Dashboard Button Icon.png", "color": "white"},
-            {"text": "Live Data", "icon": "Live Data Button Icon.png", "color": "#6E94C8"},
-            {"text": "Run Test", "icon": "Run Test Button Icon.png", "color": "#6E94C8"},
-            {"text": "Reports", "icon": "Reports Button Icon.png", "color": "#6E94C8"},
-            {"text": "Layout", "icon": "Layout Button Icon.png", "color": "#6E94C8"},
-            {"text": "Settings", "icon": "Settings Button Icon.png", "color": "white"},
-            {"text": "Logout", "icon": "Logout Button Icon.png", "color": "white"},
-        ]
-
-        base_y = 285
-        spacing = 72
-
-        try:
-            bar_icon = Image.open(self.assets_path / "SideMenuSelectionButton.png").resize((8, 48))  # Adjust size to match sidebar button height
-            self.sidebar_bar_img = ImageTk.PhotoImage(bar_icon)
-        except:
-            self.sidebar_bar_img = None
-
-        for i, button in enumerate(buttons):
-            if button["text"] == "Settings":
-                base_y += 150 - spacing
-
-            y = base_y + i * spacing
-
-            self.create_sidebar_button(
-                sidebar,
-                text=button["text"],
-                icon_file=button["icon"],
-                y=y,
-                text_color=button["color"],
-                is_selected=(button["text"] == self.selected_tab)
-            )
-
-            # ⬅️ Place selection bar at left edge
-            if button["text"] == self.selected_tab and self.sidebar_bar_img:
-                tk.Label(sidebar, image=self.sidebar_bar_img, bg="#005DAA").place(x=0, y=y)
+        sidebar = SideMenu(self, controller=self.controller, active_page="Dashboard")
 
 
     def create_sidebar_button(self, parent, text, icon_file, y, text_color="white", is_selected=False):

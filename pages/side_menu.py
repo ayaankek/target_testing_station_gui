@@ -3,10 +3,11 @@ from PIL import Image, ImageTk
 from pathlib import Path
 
 class SideMenu(tk.Frame):
-    def __init__(self, parent, controller, active_page="Dashboard"):
+    def __init__(self, parent, controller, active_page="Dashboard", username="Guest"):
         super().__init__(parent, bg="#005DAA", width=int(0.2 * 1440), height=900)
         self.controller = controller
         self.active_page = active_page
+        self.username = username  # ✅ store it
         self.assets_path = Path(__file__).resolve().parent.parent / "assets"
         self.place(x=0, y=0)
 
@@ -21,14 +22,33 @@ class SideMenu(tk.Frame):
             tk.Label(self, text="LLNL", bg="#005DAA", fg="white", font=('Poppins', 16)).place(x=20, y=40)
 
         buttons = [
-            {"text": "Dashboard", "icon": "Selected Dashboard Button Icon.png", "command": self.controller.show_dashboard},
-            {"text": "Live Data", "icon": "Live Data Button Icon.png", "command": self.controller.show_live_data},
-            {"text": "Run Test", "icon": "Run Test Button Icon.png", "command": None},
-            {"text": "Reports", "icon": "Reports Button Icon.png", "command": None},
-            {"text": "Layout", "icon": "Layout Button Icon.png", "command": None},
-            {"text": "Settings", "icon": "Settings Button Icon.png", "command": None},
-            {"text": "Logout", "icon": "Logout Button Icon.png", "command": None},
+            {
+                "text": "Dashboard",
+                "icon": "SelectedDashboardButtonIcon.png" if self.active_page == "Dashboard" else "DashboardButtonIcon.png",
+                "command": lambda: self.controller.show_dashboard(self.username)
+            },
+            {
+                "text": "Live Data",
+                "icon": "SelectedLiveDataButtonIcon.png" if self.active_page == "Live Data" else "LiveDataButtonIcon.png",
+                "command": self.controller.show_live_data
+            },
+            {
+                "text": "Run Test", "icon": "Run Test Button Icon.png", "command": None
+            },
+            {
+                "text": "Reports", "icon": "Reports Button Icon.png", "command": None
+            },
+            {
+                "text": "Layout", "icon": "Layout Button Icon.png", "command": None
+            },
+            {
+                "text": "Settings", "icon": "Settings Button Icon.png", "command": None
+            },
+            {
+                "text": "Logout", "icon": "Logout Button Icon.png", "command": self.controller.show_login
+            },
         ]
+
 
         base_y = 285
         spacing = 72
@@ -62,7 +82,7 @@ class SideMenu(tk.Frame):
         if icon_img:
             tk.Label(frame, image=icon_img, bg="#005DAA").pack(side="left", padx=(0, 30))
 
-        if text == self.active_page:
+        if text in ["Settings", "Logout"] or text == self.active_page:
             fg_color = "white"
         else:
             fg_color = "#6E94C8"
@@ -71,5 +91,8 @@ class SideMenu(tk.Frame):
         label.pack(side="left")
 
         if command:
-            frame.bind("<Button-1>", lambda e: command("admin") if text == "Dashboard" else command())
-            label.bind("<Button-1>", lambda e: command("admin") if text == "Dashboard" else command())
+            def handle_click(event):
+                command()
+            frame.bind("<Button-1>", handle_click)
+            label.bind("<Button-1>", handle_click)
+

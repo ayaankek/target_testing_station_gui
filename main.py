@@ -1,8 +1,8 @@
 import tkinter as tk
 from pages.dashboard import DashboardPage
 from pages.login import LoginPage
+from pages.live_data import LiveDataPage
 import sys
-
 
 class TargetTestingApp(tk.Tk):
     def __init__(self):
@@ -13,17 +13,24 @@ class TargetTestingApp(tk.Tk):
         self.container = tk.Frame(self)
         self.container.pack(fill="both", expand=True)
 
-        self.show_dashboard("admin")  # 🚀 directly show dashboard!
+        self.username = "admin"  # ✅ Store username for later reuse
+        self.show_dashboard(self.username)  # 🚀 Start directly on dashboard
 
     def show_login(self):
         self.clear_frame()
         self.login_page = LoginPage(self.container, self.show_dashboard)
-        self.login_page.pack(fill="both", expand=True)
-
+        self.login_page.place(x=0, y=0)
 
     def show_dashboard(self, username):
-        self.dashboard_page = DashboardPage(self.container, username=username)
+        self.username = username  # ✅ Update stored username
+        self.clear_frame()
+        self.dashboard_page = DashboardPage(self.container, controller=self, username=username)
         self.dashboard_page.place(x=0, y=0)
+
+    def show_live_data(self):
+        self.clear_frame()
+        self.live_data_page = LiveDataPage(self.container, controller=self, username=self.username)
+        self.live_data_page.place(x=0, y=0)
 
     def clear_frame(self):
         for widget in self.container.winfo_children():

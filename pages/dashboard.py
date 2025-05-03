@@ -294,7 +294,7 @@ class DashboardPage(tk.Frame):
 
 
     def create_sidebar(self):
-        sidebar = SideMenu(self, controller=self.controller, active_page="Dashboard")
+        sidebar = SideMenu(self, controller=self.controller, active_page="Dashboard", username=self.username)
 
 
     def create_sidebar_button(self, parent, text, icon_file, y, text_color="white", is_selected=False):

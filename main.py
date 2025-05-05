@@ -10,16 +10,18 @@ class TargetTestingApp(tk.Tk):
         self.geometry("1440x900")
         self.title("Target Testing Station")
 
-        self.container = tk.Frame(self)
+        self.container = tk.Frame(self, width=1440, height=900)
         self.container.pack(fill="both", expand=True)
+        self.container.pack_propagate(False)
 
         self.username = "admin"  # ✅ Store username for later reuse
-        self.show_dashboard(self.username)  # 🚀 Start directly on dashboard
+        self.show_login()  # 🚀 Start directly on dashboard
 
     def show_login(self):
         self.clear_frame()
         self.login_page = LoginPage(self.container, self.show_dashboard)
         self.login_page.place(x=0, y=0)
+        self.login_page.update()
 
     def show_dashboard(self, username):
         self.username = username  # ✅ Update stored username

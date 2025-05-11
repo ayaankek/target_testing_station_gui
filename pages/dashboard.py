@@ -371,4 +371,3 @@ class DashboardPage(tk.Frame):
         self.chamber_data.update_graph(list(self.time_data), list(self.pressure_data))
 
         self.after(300000, self.update_weather_data)
-

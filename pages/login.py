@@ -32,8 +32,8 @@ class LoginPage(tk.Frame):
             self.canvas.create_text(160, 780, text="UC Davis", fill="white", font=("Poppins", 18))
 
         # === Entries ===
-        self.username = self.create_input_with_icon("user.png", "USERNAME", x=720, y=423)
-        self.password = self.create_input_with_icon("lock.png", "PASSWORD", x=720, y=518)
+        self.username = self.create_input_with_icon("user.png", "USERNAME", x=720, y=423-40)
+        self.password = self.create_input_with_icon("lock.png", "PASSWORD", x=720, y=518-40)
 
         # === Login Button ===
         login_btn = tk.Button(
@@ -48,7 +48,7 @@ class LoginPage(tk.Frame):
         self.canvas.create_window(720 + 221, 610, window=login_btn, width=442, height=66)
 
         # Forgot password text
-        self.canvas.create_text(720 + 390, 610 + 66 + 16, text="Forgot password?", fill="#275ea7", font=("Poppins", 9))
+        self.canvas.create_text(720 + 390, 610 + 45, text="Forgot password?", fill="#275ea7", font=("Poppins", 9))
 
         self.bind_all("<Return>", self.authenticate)
 

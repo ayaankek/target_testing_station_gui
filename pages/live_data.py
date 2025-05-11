@@ -8,6 +8,10 @@ from pages.side_menu import SideMenu
 from pages.dashboard import ChamberData
 from utils.weather import get_weather_data
 
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.pyplot as plt
+
 
 class TargetChamber(tk.Canvas):
     def __init__(self, parent):
@@ -108,7 +112,7 @@ class TargetChamber(tk.Canvas):
         step(0)
 
 class LiveDataPage(tk.Frame):
-    def __init__(self, master, controller, username="Guest"):
+    def __init__(self, master, controller, username="admin"):
         super().__init__(master)
         self.controller = controller
         self.username = username
@@ -130,6 +134,21 @@ class LiveDataPage(tk.Frame):
 
         self.target_chamber = TargetChamber(self.live_data_area)
         self.target_chamber.place(x=795, y=90)
+
+        self.leak_test = LeakTest(self.live_data_area)
+        self.leak_test.place(x=50, y=self.window_height - 333 - 25)  # 50 px margin from bottom
+
+        self.rate_fall_test = RateOfFallTest(self.live_data_area)
+        self.rate_fall_test.place(x=602, y=self.window_height - 333 - 25)
+
+        # Simulated data
+        leak_time = deque(np.linspace(0, 120, 15), maxlen=15)
+        leak_pressure = deque(np.random.uniform(10, 90, 15), maxlen=15)
+        self.leak_test.update_graph(list(leak_time), list(leak_pressure))
+
+        fall_time = deque(np.linspace(0, 120, 15), maxlen=15)
+        fall_pressure = deque(np.random.uniform(10, 90, 15), maxlen=15)
+        self.rate_fall_test.update_graph(list(fall_time), list(fall_pressure))
 
         tk.Label(self.live_data_area, text="Live Data", font=("Poppins", 24, "bold"), bg="#D9D9D9").place(x=45, y=15)
 
@@ -155,4 +174,79 @@ class LiveDataPage(tk.Frame):
         self.target_chamber.embed_vertical_metrics(temperature, pressure)
 
         self.after(60000, self.update_live_data)  # refresh every 60 seconds
+
+class LeakTest(tk.Canvas):
+    def __init__(self, parent):
+        width = 500
+        height = 333
+        super().__init__(parent, width=width, height=height, bg="#D9D9D9", highlightthickness=0)
+        self.width = width
+        self.height = height
+        self.assets_path = Path(__file__).resolve().parent.parent / "assets"
+        self.place(x=0, y=0)
+
+    def update_graph(self, time_data, pressure_data):
+        for widget in self.winfo_children():
+            widget.destroy()
+
+        frame = tk.Frame(self, bg='white', width=self.width, height=self.height)
+        frame.place(x=0, y=0)
+
+        tk.Label(frame, text="Leak Test", font=('Poppins', 16, 'bold'), bg='white').place(x=25, y=18)
+
+        try:
+            expand_icon = Image.open(self.assets_path / "ChamberDataIcon.png").resize((40, 40))
+            self.expand_icon_img = ImageTk.PhotoImage(expand_icon)
+            tk.Label(frame, image=self.expand_icon_img, bg='white').place(x=self.width - 60, y=20)
+        except:
+            pass
+
+        fig, ax = plt.subplots(figsize=(5.8, 2.8))
+        ax.plot(time_data, pressure_data, color='blue', marker='o')
+        ax.set_xlabel('Time (mins)')
+        ax.set_ylabel('Pressure (Psi)')
+        ax.grid(True)
+        fig.tight_layout()
+
+        canvas = FigureCanvasTkAgg(fig, master=frame)
+        canvas.draw()
+        plt.close(fig)  # Prevents backend conflicts
+        canvas.get_tk_widget().place(x=20, y=60, width=self.width - 40, height=self.height - 80)
+
+class RateOfFallTest(tk.Canvas):
+    def __init__(self, parent):
+        width = 500
+        height = 333
+        super().__init__(parent, width=width, height=height, bg="#D9D9D9", highlightthickness=0)
+        self.width = width
+        self.height = height
+        self.assets_path = Path(__file__).resolve().parent.parent / "assets"
+        self.place(x=0, y=0)
+
+    def update_graph(self, time_data, pressure_data):
+        for widget in self.winfo_children():
+            widget.destroy()
+
+        frame = tk.Frame(self, bg='white', width=self.width, height=self.height)
+        frame.place(x=0, y=0)
+
+        tk.Label(frame, text="Rate of Fall Test", font=('Poppins', 16, 'bold'), bg='white').place(x=25, y=18)
+
+        try:
+            expand_icon = Image.open(self.assets_path / "ChamberDataIcon.png").resize((40, 40))
+            self.expand_icon_img = ImageTk.PhotoImage(expand_icon)
+            tk.Label(frame, image=self.expand_icon_img, bg='white').place(x=self.width - 60, y=20)
+        except:
+            pass
+
+        fig, ax = plt.subplots(figsize=(5.8, 2.8))
+        ax.plot(time_data, pressure_data, color='blue', marker='o')
+        ax.set_xlabel('Time (mins)')
+        ax.set_ylabel('Pressure (Psi)')
+        ax.grid(True)
+        fig.tight_layout()
+
+        canvas = FigureCanvasTkAgg(fig, master=frame)
+        canvas.draw()
+        canvas.get_tk_widget().place(x=20, y=60, width=self.width - 40, height=self.height - 80)
 

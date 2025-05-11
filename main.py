@@ -15,7 +15,7 @@ class TargetTestingApp(tk.Tk):
         self.container.pack_propagate(False)
 
         self.username = "admin"  # ✅ Store username for later reuse
-        self.show_login()  # 🚀 Start directly on dashboard
+        self.show_dashboard(self.username)  # 🚀 Start directly on dashboard
 
     def show_login(self):
         self.clear_frame()

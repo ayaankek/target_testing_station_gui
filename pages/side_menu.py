@@ -3,7 +3,7 @@ from PIL import Image, ImageTk
 from pathlib import Path
 
 class SideMenu(tk.Frame):
-    def __init__(self, parent, controller, active_page="Dashboard", username="Guest"):
+    def __init__(self, parent, controller, active_page="Dashboard", username="admin"):
         super().__init__(parent, bg="#005DAA", width=int(0.2 * 1440), height=900)
         self.controller = controller
         self.active_page = active_page

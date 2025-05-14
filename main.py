@@ -2,6 +2,7 @@ import tkinter as tk
 from pages.dashboard import DashboardPage
 from pages.login import LoginPage
 from pages.live_data import LiveDataPage
+from pages.run_test import RunTestPage 
 import sys
 
 class TargetTestingApp(tk.Tk):
@@ -33,6 +34,12 @@ class TargetTestingApp(tk.Tk):
         self.clear_frame()
         self.live_data_page = LiveDataPage(self.container, controller=self, username=self.username)
         self.live_data_page.place(x=0, y=0)
+
+    def show_run_test(self, username):
+        self.username = username
+        self.clear_frame()
+        self.run_test_page = RunTestPage(self.container, controller=self, username=username)
+        self.run_test_page.place(x=0, y=0)
 
     def clear_frame(self):
         for widget in self.container.winfo_children():

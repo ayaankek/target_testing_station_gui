@@ -120,7 +120,7 @@ class LiveDataPage(tk.Frame):
         tk.Label(self.live_data_area, text="Logged in as:", font=("Poppins", 11), fg="#333", bg="#D9D9D9").place(x=x_start, y=20)
         tk.Label(self.live_data_area, text=self.username, font=("Poppins", 12, "bold"), fg="#333", bg="#D9D9D9").place(x=x_start + 110, y=19)
 
-        self.time_data = deque([], maxlen=30)
+        self.time_data = deque([], maxlen=60)
         self.pressure_data = deque([], maxlen=30)
 
         self.latest_temperature = 28
@@ -133,22 +133,34 @@ class LiveDataPage(tk.Frame):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((ip, port))
+                print("[Socket] Connected to server at", ip, port)
+
                 while True:
                     data = s.recv(1024)
                     if not data:
-                        break
+                        break  # exit loop before using decoded
 
                     decoded = data.decode().strip()
+                    print("[Socket] Raw data received:", decoded)  # ✅ Moved inside
+
                     try:
-                        parts = decoded.split(',')
-                        pressure_val = float(parts[0].split('=')[1])
-                        temp_val = float(parts[1].split('=')[1])
-                        self.latest_temperature = temp_val
+                        if '=' in decoded:
+                            parts = decoded.split(',')
+                            pressure_val = float(parts[0].split('=')[1])
+                            temp_val = float(parts[1].split('=')[1])
+                        else:
+                            pressure_val, temp_val = map(float, decoded.split(','))
+
                         self.latest_pressure = pressure_val
-                    except (IndexError, ValueError):
-                        print("Malformed TCP data:", decoded)
+                        self.latest_temperature = temp_val
+                        print(f"[Socket] Updated → Pressure: {pressure_val:.2f} psi | Temp: {temp_val:.2f} °C")
+
+                    except (IndexError, ValueError) as e:
+                        print("Malformed TCP data:", decoded, "| Error:", e)
+
         except Exception as e:
             print("Socket connection error:", e)
+
 
     def update_live_data(self):
         temperature = self.latest_temperature

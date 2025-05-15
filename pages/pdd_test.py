@@ -5,8 +5,10 @@ from pages.side_menu import SideMenu
 
 
 class PDDTestPage(tk.Frame):
-    def __init__(self, master):
+    def __init__(self, master, controller=None, username="admin"):
         super().__init__(master, bg="#D9D9D9")
+        self.controller = controller
+        self.username = username
 
         self.window_width = 1440
         self.window_height = 900
@@ -28,6 +30,12 @@ class PDDTestPage(tk.Frame):
             bg="#D9D9D9",
             fg="#222"
         ).place(x=30, y=15)
+
+        # === Top-right user label ===
+        x_start = self.window_width - self.sidebar_width - 200
+        tk.Label(self.test_area, text="Logged in as:", font=("Poppins", 11), fg="#333", bg="#D9D9D9").place(x=x_start, y=20)
+        tk.Label(self.test_area, text=self.username, font=("Poppins", 12, "bold"), fg="#333", bg="#D9D9D9").place(x=x_start + 110, y=19)
+
 
         # === Generate fallback data ===
         self.time_data = [0, 15, 30, 45, 60, 75, 90, 105, 120]

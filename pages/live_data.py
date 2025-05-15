@@ -28,7 +28,41 @@ class TargetChamber(tk.Canvas):
         except:
             pass
 
-        self.embed_vertical_metrics(temperature=28, pressure=15)
+        # Default values
+        self.latest_temperature = 28
+        self.latest_pressure = 15
+
+        # Start socket listener in background
+        threading.Thread(target=self.listen_to_socket, daemon=True).start()
+
+        # Start UI refresh loop
+        self.refresh_display()
+
+    def listen_to_socket(self, ip='127.0.0.1', port=65432):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((ip, port))
+                print("[TargetChamber] Connected to server")
+
+                while True:
+                    data = s.recv(1024)
+                    if not data:
+                        break
+
+                    decoded = data.decode().strip()
+                    try:
+                        parts = decoded.split(',')
+                        self.latest_pressure = float(parts[0].split('=')[1])
+                        self.latest_temperature = float(parts[1].split('=')[1])
+                        print(f"[TargetChamber] Updated: {self.latest_pressure:.2f} psi, {self.latest_temperature:.2f} °C")
+                    except Exception as e:
+                        print("TargetChamber Parse Error:", decoded, "|", e)
+        except Exception as e:
+            print("[TargetChamber] Socket error:", e)
+
+    def refresh_display(self):
+        self.embed_vertical_metrics(self.latest_temperature, self.latest_pressure)
+        self.after(5000, self.refresh_display)
 
     def embed_vertical_metrics(self, temperature, pressure):
         for widget in self.winfo_children():
@@ -51,8 +85,8 @@ class TargetChamber(tk.Canvas):
         start_x = (self.width - total_width) // 2
         start_y = (self.height - total_height) // 2 + 30
 
-        self.draw_vertical_metric(frame, f"{pressure:.0f} Pa", "#F58F8F", "#FFD3D3", pressure, 155, x=start_x, y=start_y, bar_width=bar_width, bar_height=bar_height)
-        self.draw_vertical_metric(frame, f"{temperature:.0f} °C", "#5B93F5", "#A9D0FF", temperature, 50, x=start_x + bar_width + spacing, y=start_y, bar_width=bar_width, bar_height=bar_height)
+        self.draw_vertical_metric(frame, f"{pressure:.2f} Pa", "#F58F8F", "#FFD3D3", pressure, 155, x=start_x, y=start_y, bar_width=bar_width, bar_height=bar_height)
+        self.draw_vertical_metric(frame, f"{temperature:.2f} °C", "#5B93F5", "#A9D0FF", temperature, 50, x=start_x + bar_width + spacing, y=start_y, bar_width=bar_width, bar_height=bar_height)
 
     def draw_vertical_metric(self, parent, label_text, label_color, bar_color, value, max_value, x, y, bar_width=60, bar_height=200):
         label_height = 58
@@ -73,6 +107,7 @@ class TargetChamber(tk.Canvas):
         if filled_height > 0:
             y_fill = bar_height - filled_height
             bar_canvas.create_rectangle(0, y_fill, bar_width, bar_height, fill=bar_color, outline=bar_color)
+
 
 class LiveDataPage(tk.Frame):
     def __init__(self, master, controller, username="admin"):
@@ -120,6 +155,18 @@ class LiveDataPage(tk.Frame):
         tk.Label(self.live_data_area, text="Logged in as:", font=("Poppins", 11), fg="#333", bg="#D9D9D9").place(x=x_start, y=20)
         tk.Label(self.live_data_area, text=self.username, font=("Poppins", 12, "bold"), fg="#333", bg="#D9D9D9").place(x=x_start + 110, y=19)
 
+        # Stop Button
+        self.stop_button = tk.Button(
+            self.live_data_area,
+            text="⏹ Stop Test",
+            font=("Poppins", 10, "bold"),
+            bg="#F58F8F",
+            fg="white",
+            relief="flat",
+            command=self.stop_test
+        )
+        self.stop_button.place(x=x_start - 150, y=16, width=100, height=28)
+
         self.time_data = deque([], maxlen=60)
         self.pressure_data = deque([], maxlen=30)
 
@@ -163,28 +210,23 @@ class LiveDataPage(tk.Frame):
 
 
     def update_live_data(self):
-        temperature = self.latest_temperature
+        if not self.controller.test_running:
+            return  # 🚫 Stop updating
 
-        # Use latest pressure if available, else 0
+        temperature = self.latest_temperature
         pressure = self.latest_pressure if self.latest_pressure is not None else 0
 
-        # Append current data
         self.pressure_data.append(pressure)
+        self.time_data.append(0 if len(self.time_data) == 0 else self.time_data[-1] + 1)
 
-        if len(self.time_data) == 0:
-            self.time_data.append(0)
-        else:
-            self.time_data.append(self.time_data[-1] + 1)  # 1-minute step
-
-        # Always update the graph
         self.chamber_data.update_graph(list(self.time_data), list(self.pressure_data))
-
-        # Update the vertical bar graph
         self.target_chamber.embed_vertical_metrics(temperature, pressure)
 
-        # Refresh every minute
         self.after(60000, self.update_live_data)
 
+    def stop_test(self):
+        self.controller.test_running = False
+        print("🛑 Test stopped.")
 
 class LeakTest(tk.Canvas):
     def __init__(self, parent):

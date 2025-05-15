@@ -20,6 +20,8 @@ class TargetTestingApp(tk.Tk):
         self.username = "admin"  # ✅ Store username for later reuse
         self.show_dashboard("admin")  # 🚀 Start directly on dashboard
 
+        self.test_running = True
+
     def show_login(self):
         self.clear_frame()
         self.login_page = LoginPage(self.container, self.show_dashboard)

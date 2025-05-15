@@ -42,8 +42,8 @@ class SystemMetrics(tk.Canvas):
         tk.Label(frame, text="System Metrics", font=('Poppins', 16, 'bold'), bg='white').place(x=25, y=18)
         tk.Label(frame, image=self.user_icon_img, bg='white').place(x=self.width - 70, y=18)
 
-        self.draw_metric(frame, f"{pressure:.0f} Psi", "#F58F8F", "#FFD3D3", pressure, 155, 30, 80)
-        self.draw_metric(frame, f"{temperature:.0f} °C", "#5B93F5", "#A9D0FF", temperature, 50, 30, 150)
+        self.draw_metric(frame, f"{pressure:.2f} Psi", "#F58F8F", "#FFD3D3", pressure, 155, 30, 80)
+        self.draw_metric(frame, f"{temperature:.2f} °C", "#5B93F5", "#A9D0FF", temperature, 50, 30, 150)
 
         tk.Label(frame, text="Leak Rate:", font=('Poppins', 14, 'bold'), bg='white').place(x=90, y=230)
         tk.Label(frame, text="2.1 x 10⁻⁹", font=('Poppins', 14, 'bold'), fg='green', bg='white').place(x=100, y=265)

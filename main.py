@@ -3,6 +3,8 @@ from pages.dashboard import DashboardPage
 from pages.login import LoginPage
 from pages.live_data import LiveDataPage
 from pages.run_test import RunTestPage 
+from pages.pdd_test import PDDTestPage
+from pages.gas_test import GasTestPage
 import sys
 
 class TargetTestingApp(tk.Tk):
@@ -44,6 +46,16 @@ class TargetTestingApp(tk.Tk):
     def clear_frame(self):
         for widget in self.container.winfo_children():
             widget.destroy()
+         
+    def show_pdd_test(self):
+        self.clear_frame()
+        self.pdd_test_page = PDDTestPage(self.container)
+        self.pdd_test_page.place(x=0, y=0, width=1440, height=900)  # ✅ ADD WIDTH + HEIGHT
+
+    def show_gas_test(self):
+        self.clear_frame()
+        self.gas_test_page = GasTestPage(self.container, controller=self, username=self.username)
+        self.gas_test_page.place(x=0, y=0, width=1440, height=900)  # ✅ THIS LINE IS REQUIRED
 
 if __name__ == "__main__":
     app = TargetTestingApp()

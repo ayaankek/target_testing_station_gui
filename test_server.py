@@ -16,8 +16,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         with conn:
             while True:
                 try:
-                    pressure = 14 + np.random.rand() * 2
-                    temp = 25 + np.random.rand() * 4
+                    pressure = np.random.rand() * 145          # 0–145 psi
+                    temp = 23 + np.random.rand() * 4           # 23–27 °C
                     msg = f"pressure={pressure:.2f},temperature={temp:.2f}\n"
                     conn.sendall(msg.encode())
                     print("📤 Sent:", msg.strip())

@@ -67,6 +67,13 @@ class TargetTestingApp(tk.Tk):
         self.reports_page = ReportsPage(self.container, controller=self, username=self.username)
         self.reports_page.place(x=0, y=0, width=1440, height=900)
 
+    def get_chamber_data(self):
+        if hasattr(self, 'live_data_page'):
+            return self.live_data_page.get_chamber_data()
+        else:
+            print("⚠️ Live data page not initialized.")
+            return []
+
 
 if __name__ == "__main__":
     app = TargetTestingApp()

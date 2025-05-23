@@ -104,10 +104,13 @@ class LiveDataPage(tk.Frame):
 
         self.time_data = deque([], maxlen=60)
         self.pressure_data = deque([], maxlen=60)
+        self.temperature_data = deque([], maxlen=60)
 
         self.latest_pressure = 15
         self.latest_temperature = 28
         self.test_running = True
+
+        #self.live_data_page = LiveDataPage(self.container, self, self.username)
 
         # Fallback test data for graphs
         leak_time = np.linspace(0, 12, 15)
@@ -176,6 +179,7 @@ class LiveDataPage(tk.Frame):
         temperature = self.latest_temperature
 
         self.pressure_data.append(pressure)
+        self.temperature_data.append(temperature)
         self.time_data.append(0 if not self.time_data else self.time_data[-1] + 1)
 
         print(f"[Graph] Pressure={pressure:.2f} at t={self.time_data[-1]}")
@@ -192,6 +196,9 @@ class LiveDataPage(tk.Frame):
         if not self.test_running:
             self.test_running = True
             self.update_live_data()
+
+    def get_chamber_data(self):
+        return list(zip(self.time_data, self.pressure_data, self.temperature_data))
 
 class LeakTest(tk.Canvas):
     def __init__(self, parent):

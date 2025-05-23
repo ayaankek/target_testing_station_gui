@@ -1,12 +1,15 @@
 import tkinter as tk
 import tkinter.ttk as ttk
 import csv
+import matplotlib.pyplot as plt
 
 from pages.side_menu import SideMenu
 from tkinter import messagebox
 from tkinter import filedialog
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+from datetime import timedelta
+from tempfile import NamedTemporaryFile
 
 class ReportsPage(tk.Frame):
     def __init__(self, master, controller=None, username="admin"):
@@ -47,7 +50,7 @@ class ReportsPage(tk.Frame):
         print("✅ ReportsPage rendered with sidebar, table, and buttons.")
 
     def create_test_table(self):
-        columns = ("serial", "name", "type", "date", "time", "notes")
+        columns = ("serial", "name", "type", "date", "time", "notes", "start_seconds")
 
         style = ttk.Style()
         style.configure("Treeview.Heading", font=("Poppins", 11, "bold"), background="white", foreground="#333")
@@ -70,6 +73,7 @@ class ReportsPage(tk.Frame):
         self.test_table.column("date", width=100, anchor="center")
         self.test_table.column("time", width=100, anchor="center")
         self.test_table.column("notes", width=300)
+        self.test_table.column("start_seconds", width=0, anchor="center")
 
         self.test_table.place(x=30, y=150, width=1000, height=550)
 
@@ -170,36 +174,60 @@ class ReportsPage(tk.Frame):
             self.test_table.tag_configure("hover", background="#B0C4DE")
 
     def export_to_csv(self):
+        selected = self.test_table.selection()
+        if not selected:
+            messagebox.showwarning("No Selection", "Please select a row to export.")
+            return
+
         file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV Files", "*.csv")])
         if not file_path:
             return
 
+        row = self.test_table.item(selected[0])['values']
+        test_name, duration = row[1], row[4]
+
+        # Get full chamber data from controller (LiveDataPage must define get_chamber_data)
+        full_data = self.controller.get_chamber_data()
+
+        start_seconds = int(row[6])  # stored in hidden column
+        filtered_data = [(t, p, temp) for t, p, temp in full_data if t >= start_seconds]
+        shifted_data = [(t - start_seconds, p, temp) for t, p, temp in filtered_data]
+
+        # (Optional) You could filter the chamber_data based on the duration
+        # For now, we assume you want to export the entire chamber_data
+
         with open(file_path, mode="w", newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
-            # Header
+            writer.writerow(["Test Info"])
             writer.writerow(["Serial No.", "Test Name", "Test Type", "Date", "Duration", "Notes"])
-            # Rows
-            selected = self.test_table.selection()
-            if not selected:
-                messagebox.showwarning("No Selection", "Please select a row to export.")
-                return
-
-            row = self.test_table.item(selected[0])['values']
             writer.writerow(row)
+
+            writer.writerow([])  # empty line
+            writer.writerow(["Chamber Data"])
+            writer.writerow(["Time (s)", "Pressure (Pa)", "Temperature (°C)"])
+            for t, p, temp in shifted_data:
+                writer.writerow([t, p, temp])
 
         messagebox.showinfo("Export Complete", f"Data exported to {file_path}")
 
     def export_to_pdf(self):
+        selected = self.test_table.selection()
+        if not selected:
+            messagebox.showwarning("No Selection", "Please select a row to export.")
+            return
+
         file_path = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("PDF Files", "*.pdf")])
         if not file_path:
             return
 
+        from datetime import datetime
         c = canvas.Canvas(file_path, pagesize=letter)
         width, height = letter
 
         c.setFont("Helvetica-Bold", 14)
         c.drawString(30, height - 50, "Test Report Export")
 
+        # Draw selected test row info
         c.setFont("Helvetica-Bold", 10)
         headers = ["Serial No.", "Test Name", "Test Type", "Date", "Duration", "Notes"]
         y = height - 80
@@ -208,14 +236,39 @@ class ReportsPage(tk.Frame):
 
         c.setFont("Helvetica", 9)
         y -= 20
-        selected = self.test_table.selection()
-        if not selected:
-            messagebox.showwarning("No Selection", "Please select a row to export.")
-            return
-
         row = self.test_table.item(selected[0])['values']
         for i, value in enumerate(row):
             c.drawString(30 + i * 90, y, str(value))
+
+        # Add chamber data
+        y -= 40
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(30, y, "Chamber Data")
+        y -= 20
+        c.setFont("Helvetica-Bold", 9)
+        c.drawString(30, y, "Time (s)")
+        c.drawString(130, y, "Pressure (Pa)")
+        c.drawString(240, y, "Temperature (°C)")
+
+        y -= 20
+        c.setFont("Helvetica", 9)
+
+        # Pull chamber data from LiveDataPage via controller
+        full_data = self.controller.get_chamber_data()
+        start_seconds = int(row[6])
+        filtered_data = [(t, p, temp) for t, p, temp in full_data if t >= start_seconds]
+        shifted_data = [(t - start_seconds, p, temp) for t, p, temp in filtered_data]
+
+        for t, p, temp in shifted_data:
+            c.drawString(30, y, f"{t:.2f}")
+            c.drawString(130, y, f"{p:.2f}")
+            c.drawString(240, y, f"{temp:.2f}")
+
+            y -= 15
+            if y < 50:
+                c.showPage()
+                y = height - 50
+                c.setFont("Helvetica", 9)
 
         c.save()
         messagebox.showinfo("Export Complete", f"PDF saved to {file_path}")
@@ -250,21 +303,27 @@ class ReportsPage(tk.Frame):
 
         # === Submit Button ===
         def start_logging():
-            test_name = name_entry.get().strip()
-            notes = notes_entry.get().strip()
-            start_time = start_entry.get().strip()
-            end_time = end_entry.get().strip()
-
-            if not test_name or not start_time or not end_time:
-                messagebox.showerror("Missing Info", "Please fill in test name, start time, and end time.")
-                return
-
+            def hms_to_seconds(hms_str):
+                h, m, s = map(int, hms_str.split(":"))
+                return h * 3600 + m * 60 + s
+            
             def valid_time_format(s):
                 try:
                     h, m, s = map(int, s.split(":"))
                     return True
                 except:
                     return False
+            
+            test_name = name_entry.get().strip()
+            notes = notes_entry.get().strip()
+            start_time = start_entry.get().strip()
+            end_time = end_entry.get().strip()
+            start_seconds = hms_to_seconds(start_time)
+            end_seconds = hms_to_seconds(end_time)
+
+            if not test_name or not start_time or not end_time:
+                messagebox.showerror("Missing Info", "Please fill in test name, start time, and end time.")
+                return
 
             if not (valid_time_format(start_time) and valid_time_format(end_time)):
                 messagebox.showerror("Invalid Format", "Times must be in HH:MM:SS format.")
@@ -291,7 +350,7 @@ class ReportsPage(tk.Frame):
             date_str = datetime.now().strftime("%Y-%m-%d")
             serial = len(self.test_table.get_children()) + 1
 
-            row = (serial, test_name, "Chamber", date_str, duration_str, notes)
+            row = (serial, test_name, "Chamber", date_str, duration_str, notes, start_seconds)
             tag = "row_even" if serial % 2 == 0 else "row_odd"
             self.test_table.insert("", "end", values=row, tags=(tag,))
 
@@ -306,3 +365,15 @@ class ReportsPage(tk.Frame):
         popup.update_idletasks()
         popup.geometry(f"420x{popup.winfo_reqheight()}")  # force height = content height
         popup.resizable(False, False)
+    
+    def parse_duration(duration_str):
+        try:
+            parts = duration_str.strip().split(":")
+            if len(parts) != 3:
+                return None
+            h, m, s = map(int, parts)
+            if not (0 <= m < 60 and 0 <= s < 60):
+                return None
+            return timedelta(hours=h, minutes=m, seconds=s)
+        except:
+            return None

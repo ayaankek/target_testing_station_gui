@@ -1,7 +1,12 @@
 import tkinter as tk
 import tkinter.ttk as ttk
+import csv
+
 from pages.side_menu import SideMenu
 from tkinter import messagebox
+from tkinter import filedialog
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
 class ReportsPage(tk.Frame):
     def __init__(self, master, controller=None, username="admin"):
@@ -56,7 +61,7 @@ class ReportsPage(tk.Frame):
             style="Treeview"
         )
 
-        for col, text in zip(columns, ["Serial No.", "Test Name", "Test Type", "Date", "Time", "Notes"]):
+        for col, text in zip(columns, ["Serial No.", "Test Name", "Test Type", "Date", "Duration", "Notes"]):
             self.test_table.heading(col, text=text)
 
         self.test_table.column("serial", width=80, anchor="center")
@@ -79,11 +84,11 @@ class ReportsPage(tk.Frame):
         self.test_table.bind("<Motion>", self.on_row_hover)
 
         sample_data = [
-            (1, "Leak Test 1", "Leak", "2025-05-22", "14:03", "Passed visual inspection."),
-            (2, "Pressure Drop", "PDD", "2025-05-20", "10:45", "Noted irregular drop."),
-            (3, "Valve Test A", "Gas", "2025-05-18", "09:30", "Needs retesting."),
-            (4, "System Flow", "Gas", "2025-05-17", "12:10", "Stable."),
-            (5, "Final Test", "Leak", "2025-05-16", "11:00", "All metrics passed.")
+            (1, "Leak Test 1", "Leak", "2025-05-22", "5m 32s", "Passed visual inspection."),
+            (2, "Pressure Drop", "PDD", "2025-05-20", "12m 5s", "Noted irregular drop."),
+            (3, "Valve Test A", "Gas", "2025-05-18", "3m 47s", "Needs retesting."),
+            (4, "System Flow", "Gas", "2025-05-17", "7m 59s", "Stable."),
+            (5, "Final Test", "Leak", "2025-05-16", "10m 18s", "All metrics passed.")
         ]
 
         for i, row in enumerate(sample_data):
@@ -98,6 +103,16 @@ class ReportsPage(tk.Frame):
         # Edit button to the left of Delete
         edit_btn = tk.Button(self.reports_area, text="Edit Row", font=("Poppins", 10), command=self.edit_selected_row)
         edit_btn.place(x=840, y=100, width=100)
+
+        # === Export Buttons ===
+        export_csv_btn = tk.Button(self.reports_area, text="Export to CSV", font=("Poppins", 10), command=self.export_to_csv)
+        export_csv_btn.place(x=790, y=720, width=120)
+
+        export_pdf_btn = tk.Button(self.reports_area, text="Export to PDF", font=("Poppins", 10), command=self.export_to_pdf)
+        export_pdf_btn.place(x=930, y=720, width=120)
+
+        log_btn = tk.Button(self.reports_area, text="Log Test Data", font=("Poppins", 10), command=self.open_log_prompt)
+        log_btn.place(x=700, y=100, width=120)
 
     def delete_selected_row(self):
         selected = self.test_table.selection()
@@ -121,7 +136,7 @@ class ReportsPage(tk.Frame):
         # === Popup edit window
         popup = tk.Toplevel(self)
         popup.title("Edit Row")
-        popup.geometry("400x400")
+        popup.geometry("420x460")
         popup.configure(bg="white")
 
         entries = []
@@ -153,3 +168,141 @@ class ReportsPage(tk.Frame):
         if region == "cell" and row_id:
             self.test_table.item(row_id, tags=("hover",))
             self.test_table.tag_configure("hover", background="#B0C4DE")
+
+    def export_to_csv(self):
+        file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV Files", "*.csv")])
+        if not file_path:
+            return
+
+        with open(file_path, mode="w", newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+            # Header
+            writer.writerow(["Serial No.", "Test Name", "Test Type", "Date", "Duration", "Notes"])
+            # Rows
+            selected = self.test_table.selection()
+            if not selected:
+                messagebox.showwarning("No Selection", "Please select a row to export.")
+                return
+
+            row = self.test_table.item(selected[0])['values']
+            writer.writerow(row)
+
+        messagebox.showinfo("Export Complete", f"Data exported to {file_path}")
+
+    def export_to_pdf(self):
+        file_path = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("PDF Files", "*.pdf")])
+        if not file_path:
+            return
+
+        c = canvas.Canvas(file_path, pagesize=letter)
+        width, height = letter
+
+        c.setFont("Helvetica-Bold", 14)
+        c.drawString(30, height - 50, "Test Report Export")
+
+        c.setFont("Helvetica-Bold", 10)
+        headers = ["Serial No.", "Test Name", "Test Type", "Date", "Duration", "Notes"]
+        y = height - 80
+        for i, header in enumerate(headers):
+            c.drawString(30 + i * 90, y, header)
+
+        c.setFont("Helvetica", 9)
+        y -= 20
+        selected = self.test_table.selection()
+        if not selected:
+            messagebox.showwarning("No Selection", "Please select a row to export.")
+            return
+
+        row = self.test_table.item(selected[0])['values']
+        for i, value in enumerate(row):
+            c.drawString(30 + i * 90, y, str(value))
+
+        c.save()
+        messagebox.showinfo("Export Complete", f"PDF saved to {file_path}")
+
+    def open_log_prompt(self):
+        popup = tk.Toplevel(self)
+        popup.title("Log Test Data")
+        popup.geometry("420x380")
+        popup.configure(bg="white")
+
+        tk.Label(popup, text="Log Chamber Data", font=("Poppins", 14, "bold"), bg="white").pack(pady=10)
+
+        # === Test Name ===
+        tk.Label(popup, text="Test Name:", font=("Poppins", 10), bg="white").pack(anchor="w", padx=30, pady=(5, 0))
+        name_entry = tk.Entry(popup, font=("Poppins", 10), width=35)
+        name_entry.pack(pady=5)
+
+        # === Notes ===
+        tk.Label(popup, text="Notes (optional):", font=("Poppins", 10), bg="white").pack(anchor="w", padx=30, pady=(5, 0))
+        notes_entry = tk.Entry(popup, font=("Poppins", 10), width=35)
+        notes_entry.pack(pady=5)
+
+        # === Start Time ===
+        tk.Label(popup, text="Start Time (HH:MM:SS):", font=("Poppins", 10), bg="white").pack(anchor="w", padx=30, pady=(10, 0))
+        start_entry = tk.Entry(popup, font=("Poppins", 10), width=35)
+        start_entry.pack(pady=5)
+
+        # === End Time ===
+        tk.Label(popup, text="End Time (HH:MM:SS):", font=("Poppins", 10), bg="white").pack(anchor="w", padx=30, pady=(5, 0))
+        end_entry = tk.Entry(popup, font=("Poppins", 10), width=35)
+        end_entry.pack(pady=5)
+
+        # === Submit Button ===
+        def start_logging():
+            test_name = name_entry.get().strip()
+            notes = notes_entry.get().strip()
+            start_time = start_entry.get().strip()
+            end_time = end_entry.get().strip()
+
+            if not test_name or not start_time or not end_time:
+                messagebox.showerror("Missing Info", "Please fill in test name, start time, and end time.")
+                return
+
+            def valid_time_format(s):
+                try:
+                    h, m, s = map(int, s.split(":"))
+                    return True
+                except:
+                    return False
+
+            if not (valid_time_format(start_time) and valid_time_format(end_time)):
+                messagebox.showerror("Invalid Format", "Times must be in HH:MM:SS format.")
+                return
+
+            # === Format duration from start and end
+            from datetime import timedelta
+
+            def parse_time(tstr):
+                h, m, s = map(int, tstr.split(":"))
+                return timedelta(hours=h, minutes=m, seconds=s)
+
+            t1 = parse_time(start_time)
+            t2 = parse_time(end_time)
+
+            if t2 <= t1:
+                messagebox.showerror("Invalid Range", "End time must be after start time.")
+                return
+
+            duration_str = str(t2 - t1)
+
+            # === Add to table
+            from datetime import datetime
+            date_str = datetime.now().strftime("%Y-%m-%d")
+            serial = len(self.test_table.get_children()) + 1
+
+            row = (serial, test_name, "Chamber", date_str, duration_str, notes)
+            tag = "row_even" if serial % 2 == 0 else "row_odd"
+            self.test_table.insert("", "end", values=row, tags=(tag,))
+
+            popup.destroy()
+            messagebox.showinfo("Logged", f"New log '{test_name}' added.")
+        
+        tk.Label(popup, text="").pack()  # spacer
+        tk.Button(popup, text="Submit", font=("Poppins", 10, "bold"), command=start_logging).pack(pady=20)
+        popup.update_idletasks()  # force geometry recalculation
+
+        # === Dynamically resize popup to fit all widgets ===
+        popup.update_idletasks()
+        popup.geometry(f"420x{popup.winfo_reqheight()}")  # force height = content height
+        popup.resizable(False, False)

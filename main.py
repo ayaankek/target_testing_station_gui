@@ -20,8 +20,9 @@ class TargetTestingApp(tk.Tk):
         self.container.pack_propagate(False)
 
         self.username = "admin"  # ✅ Store username for later reuse
-        self.show_dashboard("admin")  # 🚀 Start directly on dashboard
+        #self.show_dashboard("admin")  # 🚀 Start directly on dashboard
         #self.show_login()
+        self.show_reports()
         self.test_running = True
 
     def show_login(self):

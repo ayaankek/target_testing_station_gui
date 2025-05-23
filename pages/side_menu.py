@@ -38,7 +38,9 @@ class SideMenu(tk.Frame):
                 "command": lambda: self.controller.show_run_test(self.username)
             },
             {
-                "text": "Reports", "icon": "Reports Button Icon.png", "command": None
+                "text": "Reports",
+                "icon": "ReportsButtonIcon.png" if self.active_page == "Reports" else "Reports Button Icon.png",
+                "command": self.controller.show_reports
             },
             {
                 "text": "Layout", "icon": "Layout Button Icon.png", "command": None

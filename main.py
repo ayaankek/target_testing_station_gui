@@ -5,6 +5,8 @@ from pages.live_data import LiveDataPage
 from pages.run_test import RunTestPage 
 from pages.pdd_test import PDDTestPage
 from pages.gas_test import GasTestPage
+from pages.reports import ReportsPage
+
 import sys
 
 class TargetTestingApp(tk.Tk):
@@ -19,7 +21,7 @@ class TargetTestingApp(tk.Tk):
 
         self.username = "admin"  # ✅ Store username for later reuse
         self.show_dashboard("admin")  # 🚀 Start directly on dashboard
-
+        #self.show_login()
         self.test_running = True
 
     def show_login(self):
@@ -58,6 +60,12 @@ class TargetTestingApp(tk.Tk):
         self.clear_frame()
         self.gas_test_page = GasTestPage(self.container, controller=self, username=self.username)
         self.gas_test_page.place(x=0, y=0, width=1440, height=900)  # ✅ THIS LINE IS REQUIRED
+
+    def show_reports(self):
+        self.clear_frame()
+        self.reports_page = ReportsPage(self.container, controller=self, username=self.username)
+        self.reports_page.place(x=0, y=0, width=1440, height=900)
+
 
 if __name__ == "__main__":
     app = TargetTestingApp()

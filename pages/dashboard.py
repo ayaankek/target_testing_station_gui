@@ -348,3 +348,14 @@ class DashboardPage(tk.Frame):
         #self.target_chamber.embed_vertical_metrics(temperature, pressure)       # For LiveData
 
         self.after(5000, self.update_live_data)
+
+    def update_dashboard_data(self):
+        time_data = list(self.controller.time_data)
+        pressure_data = list(self.controller.pressure_data)
+        temperature = self.controller.latest_temperature
+        pressure = self.controller.latest_pressure
+
+        self.chamber_data.update_graph(time_data, pressure_data)
+        self.system_metrics.embed_metrics_frame_dynamic(temperature, pressure)
+
+        self.after(5000, self.update_dashboard_data)

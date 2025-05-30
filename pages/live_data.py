@@ -108,7 +108,9 @@ class LiveDataPage(tk.Frame):
 
         self.latest_pressure = 149
         self.latest_temperature = 28
-        self.test_running = True
+        #self.test_running = True
+
+        self.test_running = self.controller.test_running
 
         #self.live_data_page = LiveDataPage(self.container, self, self.username)
 
@@ -125,32 +127,34 @@ class LiveDataPage(tk.Frame):
         tk.Label(self.live_data_area, text="Logged in as:", font=("Poppins", 11), fg="#333", bg="#D9D9D9").place(x=x_start, y=20)
         tk.Label(self.live_data_area, text=self.username, font=("Poppins", 12, "bold"), fg="#333", bg="#D9D9D9").place(x=x_start + 110, y=19)
 
-        self.start_button = tk.Button(
+        # === Start/Stop Toggle Button
+        self.toggle_button = tk.Button(
             self.live_data_area,
             text="▶ Start Test",
             font=("Poppins", 10, "bold"),
-            bg="#5B93F5",
+            bg="#4CAF50",  # Green
             fg="white",
             relief="flat",
-            command=self.start_test
+            command=self.toggle_test
         )
-        self.start_button.place(x=x_start - 120, y=16, width=90, height=28)
+        self.toggle_button.place(x=250, y=25, width=120, height=28)
 
-        self.stop_button = tk.Button(
-            self.live_data_area,
-            text="⏹ Stop Test",
-            font=("Poppins", 10, "bold"),
-            bg="#F58F8F",
-            fg="white",
-            relief="flat",
-            command=self.stop_test
-        )
-        self.stop_button.place(x=x_start - 220, y=16, width=90, height=28)
+        # After creating self.toggle_button
+        if self.test_running:
+            self.toggle_button.config(text="⏹ Stop Test", bg="#F44336")
+
+        # 🔁 Set correct initial state
+        if self.controller.test_running:
+            self.toggle_button.config(text="⏹ Stop Test", bg="#F44336")
+            self.update_live_data()
+
+        else:
+            self.toggle_button.config(text="▶ Start Test", bg="#4CAF50")
 
         tk.Label(self.live_data_area, text="Live Data", font=("Poppins", 24, "bold"), bg="#D9D9D9").place(x=45, y=15)
 
         #threading.Thread(target=self.listen_to_socket, daemon=True).start()
-        self.update_live_data()
+        #self.update_live_data()
 
     #def listen_to_socket(self, ip='127.0.0.1', port=65432):
      #   try:
@@ -173,17 +177,19 @@ class LiveDataPage(tk.Frame):
          #   print("[Socket] ❌", e)
 
     def update_live_data(self):
-        if not self.controller.test_running:
-            return
-
         time_data = list(self.controller.time_data)
         pressure_data = list(self.controller.pressure_data)
         temperature = self.controller.latest_temperature
         pressure = self.controller.latest_pressure
 
+        # Always redraw widgets to keep UI visible
         self.chamber_data.update_graph(time_data, pressure_data)
-        #self.system_metrics.embed_metrics_frame_dynamic(temperature, pressure)  # For Dashboard
-        self.target_chamber.embed_vertical_metrics(temperature, pressure)       # For LiveData
+        self.target_chamber.embed_vertical_metrics(temperature, pressure)
+
+        # But don't append new data unless test is running
+        if self.controller.test_running:
+            # optionally add logic here to pull data, etc.
+            pass
 
         self.after(5000, self.update_live_data)
 
@@ -194,9 +200,18 @@ class LiveDataPage(tk.Frame):
         if not self.test_running:
             self.test_running = True
             self.update_live_data()
+        self.update_live_data()
 
     def get_chamber_data(self):
         return list(zip(self.time_data, self.pressure_data, self.temperature_data))
+    
+    def toggle_test(self):
+        self.controller.test_running = not self.controller.test_running
+        self.test_running = self.controller.test_running
+        if self.controller.test_running:
+            self.toggle_button.config(text="⏹ Stop Test", bg="#F44336")  # Red
+        else:
+            self.toggle_button.config(text="▶ Start Test", bg="#4CAF50")  # Green
 
 class LeakTest(tk.Canvas):
     def __init__(self, parent):

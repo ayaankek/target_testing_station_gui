@@ -35,7 +35,8 @@ class TargetTestingApp(tk.Tk):
         self.test_running = True
 
         threading.Thread(target=self.listen_to_socket, daemon=True).start()
-        self.show_login()
+        #self.show_login()
+        self.show_dashboard("admin")
 
     def show_login(self):
         self.clear_frame()

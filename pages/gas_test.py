@@ -3,12 +3,12 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 from pages.side_menu import SideMenu
 
-
 class GasTestPage(tk.Frame):
     def __init__(self, master, controller=None, username="admin"):
         super().__init__(master, bg="#D9D9D9")
         self.controller = controller
         self.username = username
+        self.test_running = False  # ✅ Test state flag
 
         self.window_width = 1440
         self.window_height = 900
@@ -31,6 +31,18 @@ class GasTestPage(tk.Frame):
             fg="#222"
         ).place(x=30, y=15)
 
+        # ✅ Toggle Button (Start/Stop)
+        self.test_button = tk.Button(
+            self.test_area,
+            text="▶ Start Test",
+            font=("Poppins", 10, "bold"),
+            bg="#4CAF50",  # Green
+            fg="white",
+            relief="flat",
+            command=self.toggle_test
+        )
+        self.test_button.place(x=325, y=25, width=110, height=30)
+
         # === Top-right user label ===
         x_start = self.window_width - self.sidebar_width - 200
         tk.Label(self.test_area, text="Logged in as:", font=("Poppins", 11), fg="#333", bg="#D9D9D9").place(x=x_start, y=20)
@@ -45,7 +57,7 @@ class GasTestPage(tk.Frame):
             parent=self.test_area,
             x=30,
             y=105,
-            title="Gas Stability Test",
+            title="Leak Test",
             data_x=self.time_data,
             data_y=self.pressure_data
         )
@@ -54,10 +66,25 @@ class GasTestPage(tk.Frame):
             parent=self.test_area,
             x=30,
             y=500,
-            title="Valve Integrity Test",
+            title="Rate of Fall Test",
             data_x=self.time_data,
             data_y=[p - 10 for p in self.pressure_data]
         )
+
+    def toggle_test(self):
+        self.test_running = not self.test_running
+        if self.test_running:
+            self.test_button.config(
+                text="⏹ Stop Test",
+                bg="#F44336"  # Red
+            )
+            print("✅ Gas test started")
+        else:
+            self.test_button.config(
+                text="▶ Start Test",
+                bg="#4CAF50"  # Green
+            )
+            print("⏹️ Gas test stopped")
 
     def create_graph_card(self, parent, x, y, title, data_x, data_y):
         card_width = 529

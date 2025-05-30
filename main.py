@@ -6,8 +6,11 @@ from pages.run_test import RunTestPage
 from pages.pdd_test import PDDTestPage
 from pages.gas_test import GasTestPage
 from pages.reports import ReportsPage
+from collections import deque
 
 import sys
+import threading
+import socket
 
 class TargetTestingApp(tk.Tk):
     def __init__(self):
@@ -19,11 +22,20 @@ class TargetTestingApp(tk.Tk):
         self.container.pack(fill="both", expand=True)
         self.container.pack_propagate(False)
 
-        self.username = "admin"  # ✅ Store username for later reuse
-        #self.show_dashboard("admin")  # 🚀 Start directly on dashboard
-        #self.show_login()
-        self.show_reports()
+        self.username = "admin"
+
+        # ✅ Shared buffers
+        self.pressure_data = deque([], maxlen=60)
+        self.temperature_data = deque([], maxlen=60)
+        self.time_data = deque([], maxlen=60)
+
+        self.latest_pressure = 100.0
+        self.latest_temperature = 25.0
+
         self.test_running = True
+
+        threading.Thread(target=self.listen_to_socket, daemon=True).start()
+        self.show_login()
 
     def show_login(self):
         self.clear_frame()
@@ -73,7 +85,28 @@ class TargetTestingApp(tk.Tk):
         else:
             print("⚠️ Live data page not initialized.")
             return []
+        
+    def listen_to_socket(self, ip='127.0.0.1', port=65432):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((ip, port))
+                print("[Socket] ✅ Connected to server")
+                while True:
+                    data = s.recv(1024)
+                    if not data:
+                        break
+                    decoded = data.decode().strip()
+                    parts = decoded.split(',')
+                    self.latest_pressure = float(parts[0].split('=')[1])
+                    self.latest_temperature = float(parts[1].split('=')[1])
 
+                    t = 0 if not self.time_data else self.time_data[-1] + 1
+                    self.pressure_data.append(self.latest_pressure)
+                    self.temperature_data.append(self.latest_temperature)
+                    self.time_data.append(t)
+        
+        except Exception as e:
+            print("[Socket] ❌ Connection error:", e)
 
 if __name__ == "__main__":
     app = TargetTestingApp()

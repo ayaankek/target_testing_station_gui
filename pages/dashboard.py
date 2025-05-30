@@ -7,6 +7,9 @@ from collections import deque
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import numpy as np
+import threading
+import socket
+
 from tkinter import font
 from pages.side_menu import SideMenu 
 
@@ -186,38 +189,29 @@ class ChamberData(tk.Canvas):
         self.assets_path = Path(__file__).resolve().parent.parent / "assets"
         self.place(x=0, y=30)
 
-    def update_graph(self, time_minutes, pressure_psi):
-        # Keep only last 2 hours (120 minutes) of data
-        recent_time = []
-        recent_pressure = []
-        for t, p in zip(time_minutes, pressure_psi):
-            if time_minutes[-1] - t <= 120:
-                recent_time.append(t)
-                recent_pressure.append(p)
-
+    def update_graph(self, time_data, pressure_data):
         for widget in self.winfo_children():
             widget.destroy()
 
         frame = tk.Frame(self, bg='white', width=self.width, height=self.height)
         frame.place(x=0, y=0)
-
         tk.Label(frame, text="Chamber Data", font=('Poppins', 16, 'bold'), bg='white').place(x=25, y=18)
 
-        if getattr(self.master.master, "is_fallback", False):
-             tk.Label(frame, text="⚠ Fallback Data Mode", font=('Poppins', 10), fg="red", bg='white').place(x=400, y=35)
-
-        try:
-            expand_icon = Image.open(self.assets_path / "ChamberDataIcon.png").resize((40, 40))
-            self.expand_icon_img = ImageTk.PhotoImage(expand_icon)
-            tk.Label(frame, image=self.expand_icon_img, bg='white').place(x=self.width - 70, y=18)
-        except:
-            pass
+        if len(time_data) >= 2:
+            z = np.polyfit(time_data, pressure_data, 1)
+            trendline = np.poly1d(z)
+            trend_y = trendline(time_data)
+        else:
+            trend_y = pressure_data
 
         fig, ax = plt.subplots(figsize=(6.2, 3))
-        ax.plot(time_minutes, pressure_psi, marker='o', linestyle='-', color='blue')
+        ax.plot(time_data, pressure_data, marker='o', linestyle='-', color='blue', label="Pressure")
+        if len(time_data) >= 2:
+            ax.plot(time_data, trend_y, linestyle='--', color='red', label="Trendline")
         ax.set_xlabel('Time (mins)')
         ax.set_ylabel('Pressure (Psi)')
         ax.grid(True)
+        ax.legend()
         fig.tight_layout()
 
         canvas = FigureCanvasTkAgg(fig, master=frame)
@@ -276,42 +270,23 @@ class DashboardPage(tk.Frame):
         self.window_height = 900
         self.sidebar_width = int(0.2 * self.window_width)
 
-        self.selected_tab = "Dashboard"
-
         self.configure(bg="#D9D9D9")
         self.place(width=self.window_width, height=self.window_height)
 
-        self.username = username
+        self.time_data = deque([], maxlen=60)
+        self.pressure_data = deque([], maxlen=60)
+
+        self.latest_pressure = 100.0
+        self.latest_temperature = 25.0
+
         self.create_sidebar()
         self.create_dashboard_area()
 
-        self.time_data = deque(np.linspace(0, 150, 30), maxlen=30)
-        self.pressure_data = deque(np.random.uniform(14, 16, 30), maxlen=30)
-        self.start_time = time.time()
-
-        self.is_fallback = True  # Always true with this version
-        self.update_weather_data()
-
+        #threading.Thread(target=self.listen_to_socket, daemon=True).start()
+        self.update_live_data()
 
     def create_sidebar(self):
-        sidebar = SideMenu(self, controller=self.controller, active_page="Dashboard", username=self.username)
-
-
-    def create_sidebar_button(self, parent, text, icon_file, y, text_color="white", is_selected=False):
-        try:
-            icon = Image.open(self.assets_path / icon_file).resize((24, 24))
-            icon_img = ImageTk.PhotoImage(icon)
-            setattr(self, f"{text.lower().replace(' ', '_')}_icon", icon_img)
-        except:
-            icon_img = None
-
-        container = tk.Frame(parent, bg="#005DAA", width=250, height=48)
-        container.place(x=(self.sidebar_width - 170) // 2, y=y)
-
-        if icon_img:
-            tk.Label(container, image=icon_img, bg="#005DAA").pack(side="left", padx=(0, 30))
-        tk.Label(container, text=text, fg=text_color, bg="#005DAA", font=('Poppins', 12, 'bold')).pack(side="left")
-
+        SideMenu(self, controller=self.controller, active_page="Dashboard", username=self.username)
 
     def create_dashboard_area(self):
         self.dashboard_area = tk.Frame(self, bg="#D9D9D9", width=self.window_width - self.sidebar_width, height=self.window_height)
@@ -319,55 +294,57 @@ class DashboardPage(tk.Frame):
 
         tk.Label(self.dashboard_area, text="Dashboard", font=("Poppins", 24, "bold"), bg="#D9D9D9").place(x=45, y=15)
 
+        # Top-left: Chamber Data plot
         self.chamber_data = ChamberData(self.dashboard_area)
         self.chamber_data.place(x=50, y=90)
 
+        # Bottom-left: System Metrics
         self.system_metrics = SystemMetrics(self.dashboard_area)
-        self.system_metrics.place(x=50, y=self.window_height - self.system_metrics.height - 30)
+        self.system_metrics.place(x=50, y=530)
 
-        self.valves_status = ValvesStatus(self.dashboard_area)
-        self.valves_status.place(x=675, y=self.window_height - self.system_metrics.height - 30)
-
+        # Top-right: System Status
         self.system_status = SystemStatus(self.dashboard_area)
-        self.system_status.place(x=795, y=90)
+        self.system_status.place(x=800, y=90)
 
-        # === Username Display (Top Right) ===
+        # Bottom-right: Valves
+        self.valves_status = ValvesStatus(self.dashboard_area)
+        self.valves_status.place(x=680, y=530)
+
+        # Login info top-right
         x_start = self.window_width - self.sidebar_width - 200
-        y_pos = 20
+        tk.Label(self.dashboard_area, text="Logged in as:", font=("Poppins", 11), fg="#333", bg="#D9D9D9").place(x=x_start, y=20)
+        tk.Label(self.dashboard_area, text=self.username, font=("Poppins", 12, "bold"), fg="#333", bg="#D9D9D9").place(x=x_start + 110, y=19)
 
-        # Normal part
-        tk.Label(
-            self.dashboard_area,
-            text="Logged in as:",
-            font=("Poppins", 11),
-            fg="#333",
-            bg="#D9D9D9"
-        ).place(x=x_start, y=y_pos)
+    #def listen_to_socket(self, ip='127.0.0.1', port=65432):
+     #   try:
+      #      with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+       #         s.connect((ip, port))
+        #        print("[Socket] ✅ Connected to server")
+         #       while True:
+          #          data = s.recv(1024)
+           #         if not data:
+            #            break
+             #       decoded = data.decode().strip()
+              #      try:
+               #         parts = decoded.split(',')
+                #        self.latest_pressure = float(parts[0].split('=')[1])
+                 #       self.latest_temperature = float(parts[1].split('=')[1])
+                  #  except Exception as e:
+                   #     print("[Socket] ⚠️ Error parsing:", decoded, "|", e)
+        #except Exception as e:
+         #   print("[Socket] ❌ Connection error:", e)
 
-        # Bold username part
-        tk.Label(
-            self.dashboard_area,
-            text=self.username,
-            font=("Poppins", 12, "bold"),
-            fg="#333",
-            bg="#D9D9D9"
-        ).place(x=x_start + 110, y=y_pos - 1)  # minor alignment tweak
+    def update_live_data(self):
+        if not self.controller.test_running:
+            return
 
+        time_data = list(self.controller.time_data)
+        pressure_data = list(self.controller.pressure_data)
+        temperature = self.controller.latest_temperature
+        pressure = self.controller.latest_pressure
 
-    def update_weather_data(self):
-        from collections import deque
-        import numpy as np
+        self.chamber_data.update_graph(time_data, pressure_data)
+        self.system_metrics.embed_metrics_frame_dynamic(temperature, pressure)  # For Dashboard
+        #self.target_chamber.embed_vertical_metrics(temperature, pressure)       # For LiveData
 
-        self.time_data = deque(np.linspace(0, 150, 30), maxlen=30)
-        self.pressure_data = deque(np.random.uniform(14.0, 16.0, 30), maxlen=30)
-        temperature = 28
-        pressure = 15
-
-        print("🧪 Testing fallback")
-        #print("Time data:", list(self.time_data))
-        #print("Pressure data:", list(self.pressure_data))
-
-        self.system_metrics.embed_metrics_frame_dynamic(temperature, pressure)
-        self.chamber_data.update_graph(list(self.time_data), list(self.pressure_data))
-
-        self.after(300000, self.update_weather_data)
+        self.after(5000, self.update_live_data)

@@ -106,7 +106,7 @@ class LiveDataPage(tk.Frame):
         self.pressure_data = deque([], maxlen=60)
         self.temperature_data = deque([], maxlen=60)
 
-        self.latest_pressure = 15
+        self.latest_pressure = 149
         self.latest_temperature = 28
         self.test_running = True
 
@@ -149,43 +149,41 @@ class LiveDataPage(tk.Frame):
 
         tk.Label(self.live_data_area, text="Live Data", font=("Poppins", 24, "bold"), bg="#D9D9D9").place(x=45, y=15)
 
-        threading.Thread(target=self.listen_to_socket, daemon=True).start()
+        #threading.Thread(target=self.listen_to_socket, daemon=True).start()
         self.update_live_data()
 
-    def listen_to_socket(self, ip='127.0.0.1', port=65432):
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.connect((ip, port))
-                print("[Socket] ✅ Connected to server at", ip, port)
-                while True:
-                    data = s.recv(1024)
-                    if not data:
-                        break
-                    decoded = data.decode().strip()
-                    print("[Socket] 📥", decoded)
-                    try:
-                        parts = decoded.split(',')
-                        self.latest_pressure = float(parts[0].split('=')[1])
-                        self.latest_temperature = float(parts[1].split('=')[1])
-                    except Exception as e:
-                        print("⚠️ Bad socket data:", decoded, "|", e)
-        except Exception as e:
-            print("[Socket] ❌", e)
+    #def listen_to_socket(self, ip='127.0.0.1', port=65432):
+     #   try:
+      #      with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+       #         s.connect((ip, port))
+        #        print("[Socket] ✅ Connected to server at", ip, port)
+         #       while True:
+          #          data = s.recv(1024)
+           #         if not data:
+            #            break
+             #       decoded = data.decode().strip()
+              #      print("[Socket] 📥", decoded)
+               #     try:
+                #        parts = decoded.split(',')
+                 #       self.latest_pressure = float(parts[0].split('=')[1])
+                  #      self.latest_temperature = float(parts[1].split('=')[1])
+                   # except Exception as e:
+                    #    print("⚠️ Bad socket data:", decoded, "|", e)
+        #except Exception as e:
+         #   print("[Socket] ❌", e)
 
     def update_live_data(self):
-        if not self.test_running:
+        if not self.controller.test_running:
             return
-        pressure = self.latest_pressure
-        temperature = self.latest_temperature
 
-        self.pressure_data.append(pressure)
-        self.temperature_data.append(temperature)
-        self.time_data.append(0 if not self.time_data else self.time_data[-1] + 1)
+        time_data = list(self.controller.time_data)
+        pressure_data = list(self.controller.pressure_data)
+        temperature = self.controller.latest_temperature
+        pressure = self.controller.latest_pressure
 
-        print(f"[Graph] Pressure={pressure:.2f} at t={self.time_data[-1]}")
-
-        self.chamber_data.update_graph(list(self.time_data), list(self.pressure_data))
-        self.target_chamber.embed_vertical_metrics(temperature, pressure)
+        self.chamber_data.update_graph(time_data, pressure_data)
+        #self.system_metrics.embed_metrics_frame_dynamic(temperature, pressure)  # For Dashboard
+        self.target_chamber.embed_vertical_metrics(temperature, pressure)       # For LiveData
 
         self.after(5000, self.update_live_data)
 
@@ -216,6 +214,13 @@ class LeakTest(tk.Canvas):
 
         fig, ax = plt.subplots(figsize=(5.8, 2.8))
         ax.plot(time_data, pressure_data, color='blue', marker='o')
+
+        # Add red trendline (linear fit)
+        if len(time_data) >= 2:
+            coeffs = np.polyfit(time_data, pressure_data, 1)  # degree-1 polynomial
+            trendline = np.poly1d(coeffs)(time_data)
+            ax.plot(time_data, trendline, color='red', linewidth=2, label="Trend")
+
         ax.set_xlabel('Time (mins)')
         ax.set_ylabel('Pressure (Psi)')
         ax.grid(True)

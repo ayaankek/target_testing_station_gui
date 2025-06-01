@@ -195,13 +195,22 @@ class ReportsPage(tk.Frame):
         if not selected:
             messagebox.showwarning("No Selection", "Please select a row to export.")
             return
+
         file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV Files", "*.csv")])
         if not file_path:
             return
+
         row = self.test_table.item(selected[0])['values']
         full_data = self.controller.get_chamber_data()
+
         start_seconds = int(row[9])
-        shifted_data = [(t - start_seconds, p, temp) for t, p, temp in full_data if t >= start_seconds]
+        # ✅ Convert 'HH:MM:SS' or 'H:MM:SS' duration to seconds
+        h, m, s = map(int, row[4].split(":"))
+        duration_seconds = h * 3600 + m * 60 + s
+        end_seconds = start_seconds + duration_seconds
+
+        filtered_data = [(t, p, temp) for t, p, temp in full_data if start_seconds <= t <= end_seconds]
+        shifted_data = [(t - start_seconds, p, temp) for t, p, temp in filtered_data]
 
         with open(file_path, mode="w", newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
@@ -213,6 +222,7 @@ class ReportsPage(tk.Frame):
             writer.writerow(["Time (s)", "Pressure (Pa)", "Temperature (°C)"])
             for t, p, temp in shifted_data:
                 writer.writerow([t, p, temp])
+
         messagebox.showinfo("Export Complete", f"Data exported to {file_path}")
 
     def export_to_pdf(self):
@@ -220,6 +230,7 @@ class ReportsPage(tk.Frame):
         if not selected:
             messagebox.showwarning("No Selection", "Please select a row to export.")
             return
+
         file_path = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("PDF Files", "*.pdf")])
         if not file_path:
             return
@@ -229,6 +240,7 @@ class ReportsPage(tk.Frame):
         c.setFont("Helvetica-Bold", 14)
         c.drawString(30, height - 50, "Test Report Export")
         y = height - 80
+
         headers = self.test_table["columns"][:-1]
         row = self.test_table.item(selected[0])['values']
 
@@ -253,7 +265,12 @@ class ReportsPage(tk.Frame):
 
         full_data = self.controller.get_chamber_data()
         start_seconds = int(row[9])
-        shifted_data = [(t - start_seconds, p, temp) for t, p, temp in full_data if t >= start_seconds]
+        h, m, s = map(int, row[4].split(":"))
+        duration_seconds = h * 3600 + m * 60 + s
+        end_seconds = start_seconds + duration_seconds
+        filtered_data = [(t, p, temp) for t, p, temp in full_data if start_seconds <= t <= end_seconds]
+        shifted_data = [(t - start_seconds, p, temp) for t, p, temp in filtered_data]
+
         for t, p, temp in shifted_data:
             c.drawString(30, y, f"{t:.2f}")
             c.drawString(130, y, f"{p:.2f}")

@@ -9,6 +9,8 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from datetime import datetime, timedelta
 
+VOLUME_M3 = 5e-6
+
 
 class ReportsPage(tk.Frame):
     def __init__(self, master, controller=None, username="admin"):
@@ -204,7 +206,6 @@ class ReportsPage(tk.Frame):
         full_data = self.controller.get_chamber_data()
 
         start_seconds = int(row[9])
-        # ✅ Convert 'HH:MM:SS' or 'H:MM:SS' duration to seconds
         h, m, s = map(int, row[4].split(":"))
         duration_seconds = h * 3600 + m * 60 + s
         end_seconds = start_seconds + duration_seconds
@@ -219,9 +220,19 @@ class ReportsPage(tk.Frame):
             writer.writerow(row[:-1])
             writer.writerow([])
             writer.writerow(["Chamber Data"])
-            writer.writerow(["Time (s)", "Pressure (Pa)", "Temperature (°C)"])
+            writer.writerow(["Time (s)", "Pressure (Pa)", "Temperature (°C)", "Leak Rate (Pa·m³/s)"])
+
+            prev_t, prev_p = None, None
             for t, p, temp in shifted_data:
-                writer.writerow([t, p, temp])
+                if prev_t is None:
+                    leak_rate = "-"
+                else:
+                    dt = t - prev_t
+                    dp = p - prev_p
+                    leak_rate = (dp / dt) * VOLUME_M3 if dt != 0 else "-"
+                    leak_rate = f"{leak_rate:.2e}" if leak_rate != "-" else "-"
+                writer.writerow([f"{t:.2f}", f"{p:.2f}", f"{temp:.2f}", leak_rate])
+                prev_t, prev_p = t, p
 
         messagebox.showinfo("Export Complete", f"Data exported to {file_path}")
 
@@ -258,8 +269,9 @@ class ReportsPage(tk.Frame):
         y -= 20
         c.setFont("Helvetica-Bold", 9)
         c.drawString(30, y, "Time (s)")
-        c.drawString(130, y, "Pressure (Pa)")
-        c.drawString(240, y, "Temperature (°C)")
+        c.drawString(110, y, "Pressure (Pa)")
+        c.drawString(210, y, "Temp (°C)")
+        c.drawString(310, y, "Leak Rate")
         y -= 20
         c.setFont("Helvetica", 9)
 
@@ -271,10 +283,21 @@ class ReportsPage(tk.Frame):
         filtered_data = [(t, p, temp) for t, p, temp in full_data if start_seconds <= t <= end_seconds]
         shifted_data = [(t - start_seconds, p, temp) for t, p, temp in filtered_data]
 
+        prev_t, prev_p = None, None
         for t, p, temp in shifted_data:
+            if prev_t is None:
+                leak_rate = "-"
+            else:
+                dt = t - prev_t
+                dp = p - prev_p
+                leak_rate = (dp / dt) * VOLUME_M3 if dt != 0 else "-"
+                leak_rate = f"{leak_rate:.2e}" if leak_rate != "-" else "-"
             c.drawString(30, y, f"{t:.2f}")
-            c.drawString(130, y, f"{p:.2f}")
-            c.drawString(240, y, f"{temp:.2f}")
+            c.drawString(110, y, f"{p:.2f}")
+            c.drawString(210, y, f"{temp:.2f}")
+            c.drawString(310, y, leak_rate)
+            prev_t, prev_p = t, p
+
             y -= 15
             if y < 50:
                 c.showPage()

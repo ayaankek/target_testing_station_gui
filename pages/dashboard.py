@@ -227,12 +227,20 @@ class ChamberData(tk.Canvas):
 
 # === SystemStatus ===
 class SystemStatus(tk.Canvas):
-    def __init__(self, parent, chamber="Sealed", leak="Sealed", pump="Not Active"):
+    def __init__(self, parent, chamber="Not Sealed", leak="Not Sealed", pump="Not Active"):
         super().__init__(parent, width=306, height=405, bg="white", highlightthickness=0)
         self.width = 306
         self.height = 405
         self.pack_propagate(False)
         self.configure(borderwidth=0)
+
+        self.status_values = {
+            "Chamber": chamber,
+            "Leak Detector": leak,
+            "Pump": pump
+        }
+
+        self.status_widgets = {}
 
         title_font = font.Font(family="Poppins", size=16, weight="bold")
         label_font = font.Font(family="Poppins", size=13)
@@ -245,7 +253,6 @@ class SystemStatus(tk.Canvas):
         except:
             self.system_icon_img = None
 
-        # Title
         title_frame = tk.Frame(self, bg="white")
         title_frame.pack(pady=(20, 10), fill="x", padx=20)
 
@@ -253,18 +260,46 @@ class SystemStatus(tk.Canvas):
         if self.system_icon_img:
             tk.Label(title_frame, image=self.system_icon_img, bg="white").pack(side="right")
 
-        # Status rows
-        def add_status_row(label, value, color):
-            row = tk.Frame(self, bg="white")
-            row.pack(anchor="w", padx=25, pady=5)
-            tk.Label(row, text=f"{label}:", font=label_font, bg="white", fg="#222").pack(side="left")
-            tk.Label(row, text=f"  {value}", font=status_font, bg="white", fg=color).pack(side="left")
+        self.label_font = label_font
+        self.status_font = status_font
 
-        add_status_row("Chamber", chamber, "green" if chamber == "Sealed" else "red")
-        add_status_row("Leak Detector", leak, "green" if leak == "Sealed" else "red")
-        add_status_row("Pump", pump, "red" if pump == "Not Active" else "green")
+        for key in ["Chamber", "Leak Detector", "Pump"]:
+            self.add_status_row(key)
 
+    def add_status_row(self, label,):
+        row = tk.Frame(self, bg="white")
+        row.pack(anchor="w", padx=25, pady=5)
 
+        tk.Label(row, text=f"{label}:", font=self.label_font, bg="white", fg="#222").pack(side="left")
+
+        status_value = self.status_values[label]
+        color = self.get_status_color(label, status_value)
+        status_label = tk.Label(row, text=f"  {status_value}", font=self.status_font, bg="white", fg=color)
+        status_label.pack(side="left")
+
+        # Bind click to toggle
+        status_label.bind("<Button-1>", lambda e, key=label: self.toggle_status(key))
+        self.status_widgets[label] = status_label
+
+    def toggle_status(self, key):
+        current = self.status_values[key]
+        if key in ["Chamber", "Leak Detector"]:
+            new_status = "Not Sealed" if current == "Sealed" else "Sealed"
+        elif key == "Pump":
+            new_status = "Active" if current == "Not Active" else "Not Active"
+        else:
+            return
+
+        self.status_values[key] = new_status
+        label_widget = self.status_widgets[key]
+        label_widget.config(text=f"  {new_status}", fg=self.get_status_color(key, new_status))
+
+    def get_status_color(self, key, value):
+        if key in ["Chamber", "Leak Detector"]:
+            return "green" if value == "Sealed" else "red"
+        elif key == "Pump":
+            return "green" if value == "Active" else "red"
+        return "#333"
 
 class DashboardPage(tk.Frame):
     def __init__(self, master, controller, username="admin"):

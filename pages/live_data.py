@@ -203,7 +203,7 @@ class LiveDataPage(tk.Frame):
         self.update_live_data()
 
     def get_chamber_data(self):
-        return list(zip(self.time_data, self.pressure_data, self.temperature_data))
+        return list(zip(self.controller.time_data, self.controller.pressure_data, self.controller.temperature_data))
     
     def toggle_test(self):
         self.controller.test_running = not self.controller.test_running

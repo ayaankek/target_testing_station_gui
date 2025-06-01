@@ -4,53 +4,42 @@ import csv
 import matplotlib.pyplot as plt
 
 from pages.side_menu import SideMenu
-from tkinter import messagebox
-from tkinter import filedialog
+from tkinter import messagebox, filedialog
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-from datetime import timedelta
-from tempfile import NamedTemporaryFile
+from datetime import datetime, timedelta
+
 
 class ReportsPage(tk.Frame):
     def __init__(self, master, controller=None, username="admin"):
         super().__init__(master, bg="#D9D9D9")
         self.controller = controller
         self.username = username
-
         self.window_width = 1440
         self.window_height = 900
         self.sidebar_width = int(0.2 * self.window_width)
 
-        # === Sidebar ===
         self.sidebar = SideMenu(self, controller=self.controller, active_page="Reports", username=username)
         self.sidebar.place(x=0, y=0)
 
-        # === Main content area ===
         self.reports_area = tk.Frame(self, bg="#D9D9D9", width=self.window_width - self.sidebar_width, height=self.window_height)
         self.reports_area.place(x=self.sidebar_width, y=0)
 
-        # === Page Title ===
-        tk.Label(
-            self.reports_area,
-            text="Reports",
-            font=("Poppins", 24, "bold"),
-            bg="#D9D9D9",
-            fg="#222"
-        ).place(x=30, y=15)
+        tk.Label(self.reports_area, text="Reports", font=("Poppins", 24, "bold"), bg="#D9D9D9", fg="#222").place(x=30, y=15)
 
-        # === Top-right user label ===
         x_start = self.window_width - self.sidebar_width - 200
         tk.Label(self.reports_area, text="Logged in as:", font=("Poppins", 11), fg="#333", bg="#D9D9D9").place(x=x_start, y=20)
         tk.Label(self.reports_area, text=self.username, font=("Poppins", 12, "bold"), fg="#333", bg="#D9D9D9").place(x=x_start + 110, y=19)
 
-        # === Table and Controls ===
         self.create_test_table()
         self.create_button_panel()
 
-        print("✅ ReportsPage rendered with sidebar, table, and buttons.")
-
     def create_test_table(self):
-        columns = ("serial", "name", "type", "date", "time", "notes", "start_seconds")
+        columns = (
+            "serial", "target_name", "type", "date", "time",
+            "target_pressure", "min_pressure", "max_pressure",
+            "notes", "start_seconds"
+        )
 
         style = ttk.Style()
         style.configure("Treeview.Heading", font=("Poppins", 11, "bold"), background="white", foreground="#333")
@@ -64,35 +53,40 @@ class ReportsPage(tk.Frame):
             style="Treeview"
         )
 
-        for col, text in zip(columns, ["Serial No.", "Test Name", "Test Type", "Date", "Duration", "Notes"]):
+        headings = [
+            "Serial No.", "Target Name", "Test Type", "Date", "Duration",
+            "Target Pressure", "Min Pressure", "Max Pressure", "Notes"
+        ]
+        widths = [120, 140, 100, 100, 100, 120, 120, 120, 300, 0]
+
+        for col, text, w in zip(columns, headings + [""], widths):  # headings has 9, columns has 10
             self.test_table.heading(col, text=text)
+            self.test_table.column(col, width=w, anchor="center" if w else "w", stretch=False)
 
-        self.test_table.column("serial", width=80, anchor="center")
-        self.test_table.column("name", width=160, anchor="center")
-        self.test_table.column("type", width=120, anchor="center")
-        self.test_table.column("date", width=100, anchor="center")
-        self.test_table.column("time", width=100, anchor="center")
-        self.test_table.column("notes", width=300)
-        self.test_table.column("start_seconds", width=0, anchor="center")
-
+        # Place Treeview and Scrollbars
         self.test_table.place(x=30, y=150, width=1000, height=550)
 
-        # === Scrollbar ===
-        scrollbar = ttk.Scrollbar(self.reports_area, orient="vertical", command=self.test_table.yview)
-        self.test_table.configure(yscrollcommand=scrollbar.set)
-        scrollbar.place(x=1030, y=150, height=550)
+        v_scroll = ttk.Scrollbar(self.reports_area, orient="vertical", command=self.test_table.yview)
+        h_scroll = ttk.Scrollbar(self.reports_area, orient="horizontal", command=self.test_table.xview)
 
-        # === Tag styles for alternating rows
+        self.test_table.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
+
+        v_scroll.place(x=1030, y=150, height=550)
+        h_scroll.place(x=30, y=700, width=1000)
+
+        # Alternating row styles
         self.test_table.tag_configure("row_even", background="#C1D5EA")
         self.test_table.tag_configure("row_odd", background="#DEEAF5")
         self.test_table.bind("<Motion>", self.on_row_hover)
 
         sample_data = [
-            (1, "Leak Test 1", "Leak", "2025-05-22", "5m 32s", "Passed visual inspection."),
-            (2, "Pressure Drop", "PDD", "2025-05-20", "12m 5s", "Noted irregular drop."),
-            (3, "Valve Test A", "Gas", "2025-05-18", "3m 47s", "Needs retesting."),
-            (4, "System Flow", "Gas", "2025-05-17", "7m 59s", "Stable."),
-            (5, "Final Test", "Leak", "2025-05-16", "10m 18s", "All metrics passed.")
+            ("SN-001", "SN-001, 2025-05-01, 00:04:32, 100.0 psi", "Leak", "2025-05-01", "00:04:32", "100.0", "98.2", "101.4", "Minor fluctuation observed", 0),
+            ("SN-002", "SN-002, 2025-05-02, 00:08:15, 120.0 psi", "PDD", "2025-05-02", "00:08:15", "120.0", "115.6", "121.9", "Stable pressure decay", 0),
+            ("SN-003", "SN-003, 2025-05-04, 00:02:45, 90.0 psi", "Gas", "2025-05-04", "00:02:45", "90.0", "89.0", "91.0", "Fast stabilization", 0),
+            ("SN-004", "SN-004, 2025-05-06, 00:05:20, 105.0 psi", "Leak", "2025-05-06", "00:05:20", "105.0", "100.3", "106.7", "Slight initial leak", 0),
+            ("SN-005", "SN-005, 2025-05-09, 00:09:05, 115.0 psi", "PDD", "2025-05-09", "00:09:05", "115.0", "110.2", "117.8", "Requires re-evaluation", 0),
+            ("SN-006", "SN-006, 2025-05-10, 00:06:58, 130.0 psi", "Chamber", "2025-05-10", "00:06:58", "130.0", "128.0", "131.2", "Nominal behavior", 0),
+            ("SN-007", "SN-007, 2025-05-12, 00:03:33, 95.0 psi", "Gas", "2025-05-12", "00:03:33", "95.0", "93.5", "96.1", "Logged by tech", 0)
         ]
 
         for i, row in enumerate(sample_data):
@@ -100,65 +94,11 @@ class ReportsPage(tk.Frame):
             self.test_table.insert("", "end", values=row, tags=(tag,))
 
     def create_button_panel(self):
-        # Delete button aligned with right side of table
-        delete_btn = tk.Button(self.reports_area, text="Delete Row", font=("Poppins", 10), command=self.delete_selected_row)
-        delete_btn.place(x=950, y=100, width=100)
-
-        # Edit button to the left of Delete
-        edit_btn = tk.Button(self.reports_area, text="Edit Row", font=("Poppins", 10), command=self.edit_selected_row)
-        edit_btn.place(x=840, y=100, width=100)
-
-        # === Export Buttons ===
-        export_csv_btn = tk.Button(self.reports_area, text="Export to CSV", font=("Poppins", 10), command=self.export_to_csv)
-        export_csv_btn.place(x=790, y=720, width=120)
-
-        export_pdf_btn = tk.Button(self.reports_area, text="Export to PDF", font=("Poppins", 10), command=self.export_to_pdf)
-        export_pdf_btn.place(x=930, y=720, width=120)
-
-        log_btn = tk.Button(self.reports_area, text="Log Test Data", font=("Poppins", 10), command=self.open_log_prompt)
-        log_btn.place(x=700, y=100, width=120)
-
-    def delete_selected_row(self):
-        selected = self.test_table.selection()
-        if not selected:
-            messagebox.showwarning("No Selection", "Please select a row to delete.")
-            return
-
-        confirm = messagebox.askyesno("Delete Row", "Are you sure you want to delete the selected row?")
-        if confirm:
-            self.test_table.delete(selected[0])
-
-    def edit_selected_row(self):
-        selected = self.test_table.selection()
-        if not selected:
-            messagebox.showwarning("No Selection", "Please select a row to edit.")
-            return
-
-        row_id = selected[0]
-        values = self.test_table.item(row_id, "values")
-
-        # === Popup edit window
-        popup = tk.Toplevel(self)
-        popup.title("Edit Row")
-        popup.geometry("420x460")
-        popup.configure(bg="white")
-
-        entries = []
-        labels = ["Serial No.", "Test Name", "Test Type", "Date", "Time", "Notes"]
-
-        for i, label_text in enumerate(labels):
-            tk.Label(popup, text=label_text, font=("Poppins", 10), bg="white").pack(pady=(10 if i == 0 else 5, 0))
-            entry = tk.Entry(popup, font=("Poppins", 10), width=40)
-            entry.insert(0, values[i])
-            entry.pack()
-            entries.append(entry)
-
-        def save_changes():
-            new_values = [e.get() for e in entries]
-            self.test_table.item(row_id, values=new_values)
-            popup.destroy()
-
-        tk.Button(popup, text="Save", font=("Poppins", 10, "bold"), command=save_changes).pack(pady=20)
+        tk.Button(self.reports_area, text="Log Test Data", font=("Poppins", 10), command=self.open_log_prompt).place(x=700, y=100, width=120)
+        tk.Button(self.reports_area, text="Edit Row", font=("Poppins", 10), command=self.edit_selected_row).place(x=840, y=100, width=100)
+        tk.Button(self.reports_area, text="Delete Row", font=("Poppins", 10), command=self.delete_selected_row).place(x=950, y=100, width=100)
+        tk.Button(self.reports_area, text="Export to CSV", font=("Poppins", 10), command=self.export_to_csv).place(x=790, y=730, width=120)
+        tk.Button(self.reports_area, text="Export to PDF", font=("Poppins", 10), command=self.export_to_pdf).place(x=930, y=730, width=120)
 
     def on_row_hover(self, event):
         row_id = self.test_table.identify_row(event.y)
@@ -173,41 +113,106 @@ class ReportsPage(tk.Frame):
             self.test_table.item(row_id, tags=("hover",))
             self.test_table.tag_configure("hover", background="#B0C4DE")
 
+    def delete_selected_row(self):
+        selected = self.test_table.selection()
+        if not selected:
+            messagebox.showwarning("No Selection", "Please select a row to delete.")
+            return
+        if messagebox.askyesno("Confirm", "Are you sure you want to delete the selected row?"):
+            self.test_table.delete(selected[0])
+
+    def edit_selected_row(self):
+        # Optional: You can build a similar popup for editing if needed
+        messagebox.showinfo("Edit", "Edit functionality not implemented yet.")
+
+    def open_log_prompt(self):
+        popup = tk.Toplevel(self)
+        popup.title("Log Test Data")
+        popup.configure(bg="white")
+        popup.geometry("420x600")
+
+        def make_entry(label_text):
+            tk.Label(popup, text=label_text, font=("Poppins", 10), bg="white").pack(anchor="w", padx=30, pady=(5, 0))
+            entry = tk.Entry(popup, font=("Poppins", 10), width=35)
+            entry.pack(pady=5)
+            return entry
+
+        serial_entry = make_entry("Serial No.")
+        name_entry = make_entry("Target Name")
+        test_type_entry = make_entry("Test Type")
+        target_pressure_entry = make_entry("Target Pressure (psi)")
+        min_pressure_entry = make_entry("Min Pressure (psi)")
+        max_pressure_entry = make_entry("Max Pressure (psi)")
+        start_entry = make_entry("Start Time (HH:MM:SS)")
+        end_entry = make_entry("End Time (HH:MM:SS)")
+        notes_entry = make_entry("Notes (Optional)")
+
+        def hms_to_seconds(hms_str):
+            h, m, s = map(int, hms_str.split(":"))
+            return h * 3600 + m * 60 + s
+
+        def start_logging():
+            try:
+                serial = serial_entry.get().strip()
+                name = name_entry.get().strip()
+                target_p = target_pressure_entry.get().strip()
+                test_type = test_type_entry.get().strip()
+                min_p = min_pressure_entry.get().strip()
+                max_p = max_pressure_entry.get().strip()
+                start_t = start_entry.get().strip()
+                end_t = end_entry.get().strip()
+                notes = notes_entry.get().strip()
+
+                if not (serial and name and target_p and min_p and max_p and start_t and end_t):
+                    messagebox.showerror("Missing Info", "Please complete all required fields.")
+                    return
+
+                start_s = hms_to_seconds(start_t)
+                end_s = hms_to_seconds(end_t)
+
+                if end_s <= start_s:
+                    messagebox.showerror("Invalid Range", "End time must be after start time.")
+                    return
+
+                duration = str(timedelta(seconds=(end_s - start_s)))
+                date = datetime.now().strftime("%Y-%m-%d")
+
+                row = (serial, name, test_type, date, duration, target_p, min_p, max_p, notes, start_s)
+                tag = "row_even" if len(self.test_table.get_children()) % 2 == 0 else "row_odd"
+                self.test_table.insert("", "end", values=row, tags=(tag,))
+                popup.destroy()
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to log data: {e}")
+
+        tk.Button(popup, text="Submit", font=("Poppins", 10, "bold"), command=start_logging).pack(pady=20)
+
+        popup.update_idletasks()
+        popup.geometry(f"420x{popup.winfo_reqheight()}")  # Resize based on content
+        popup.resizable(False, False)
+
     def export_to_csv(self):
         selected = self.test_table.selection()
         if not selected:
             messagebox.showwarning("No Selection", "Please select a row to export.")
             return
-
         file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV Files", "*.csv")])
         if not file_path:
             return
-
         row = self.test_table.item(selected[0])['values']
-        test_name, duration = row[1], row[4]
-
-        # Get full chamber data from controller (LiveDataPage must define get_chamber_data)
         full_data = self.controller.get_chamber_data()
-
-        start_seconds = int(row[6])  # stored in hidden column
-        filtered_data = [(t, p, temp) for t, p, temp in full_data if t >= start_seconds]
-        shifted_data = [(t - start_seconds, p, temp) for t, p, temp in filtered_data]
-
-        # (Optional) You could filter the chamber_data based on the duration
-        # For now, we assume you want to export the entire chamber_data
+        start_seconds = int(row[9])
+        shifted_data = [(t - start_seconds, p, temp) for t, p, temp in full_data if t >= start_seconds]
 
         with open(file_path, mode="w", newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
             writer.writerow(["Test Info"])
-            writer.writerow(["Serial No.", "Test Name", "Test Type", "Date", "Duration", "Notes"])
-            writer.writerow(row)
-
-            writer.writerow([])  # empty line
+            writer.writerow(self.test_table["columns"][:-1])
+            writer.writerow(row[:-1])
+            writer.writerow([])
             writer.writerow(["Chamber Data"])
             writer.writerow(["Time (s)", "Pressure (Pa)", "Temperature (°C)"])
             for t, p, temp in shifted_data:
                 writer.writerow([t, p, temp])
-
         messagebox.showinfo("Export Complete", f"Data exported to {file_path}")
 
     def export_to_pdf(self):
@@ -215,32 +220,26 @@ class ReportsPage(tk.Frame):
         if not selected:
             messagebox.showwarning("No Selection", "Please select a row to export.")
             return
-
         file_path = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("PDF Files", "*.pdf")])
         if not file_path:
             return
 
-        from datetime import datetime
         c = canvas.Canvas(file_path, pagesize=letter)
         width, height = letter
-
         c.setFont("Helvetica-Bold", 14)
         c.drawString(30, height - 50, "Test Report Export")
-
-        # Draw selected test row info
-        c.setFont("Helvetica-Bold", 10)
-        headers = ["Serial No.", "Test Name", "Test Type", "Date", "Duration", "Notes"]
         y = height - 80
-        for i, header in enumerate(headers):
-            c.drawString(30 + i * 90, y, header)
-
-        c.setFont("Helvetica", 9)
-        y -= 20
+        headers = self.test_table["columns"][:-1]
         row = self.test_table.item(selected[0])['values']
-        for i, value in enumerate(row):
-            c.drawString(30 + i * 90, y, str(value))
 
-        # Add chamber data
+        c.setFont("Helvetica-Bold", 10)
+        for i, h in enumerate(headers):
+            c.drawString(30 + i * 80, y, h)
+        y -= 20
+        c.setFont("Helvetica", 9)
+        for i, val in enumerate(row[:-1]):
+            c.drawString(30 + i * 80, y, str(val))
+
         y -= 40
         c.setFont("Helvetica-Bold", 11)
         c.drawString(30, y, "Chamber Data")
@@ -249,21 +248,16 @@ class ReportsPage(tk.Frame):
         c.drawString(30, y, "Time (s)")
         c.drawString(130, y, "Pressure (Pa)")
         c.drawString(240, y, "Temperature (°C)")
-
         y -= 20
         c.setFont("Helvetica", 9)
 
-        # Pull chamber data from LiveDataPage via controller
         full_data = self.controller.get_chamber_data()
-        start_seconds = int(row[6])
-        filtered_data = [(t, p, temp) for t, p, temp in full_data if t >= start_seconds]
-        shifted_data = [(t - start_seconds, p, temp) for t, p, temp in filtered_data]
-
+        start_seconds = int(row[9])
+        shifted_data = [(t - start_seconds, p, temp) for t, p, temp in full_data if t >= start_seconds]
         for t, p, temp in shifted_data:
             c.drawString(30, y, f"{t:.2f}")
             c.drawString(130, y, f"{p:.2f}")
             c.drawString(240, y, f"{temp:.2f}")
-
             y -= 15
             if y < 50:
                 c.showPage()
@@ -272,108 +266,3 @@ class ReportsPage(tk.Frame):
 
         c.save()
         messagebox.showinfo("Export Complete", f"PDF saved to {file_path}")
-
-    def open_log_prompt(self):
-        popup = tk.Toplevel(self)
-        popup.title("Log Test Data")
-        popup.geometry("420x380")
-        popup.configure(bg="white")
-
-        tk.Label(popup, text="Log Chamber Data", font=("Poppins", 14, "bold"), bg="white").pack(pady=10)
-
-        # === Test Name ===
-        tk.Label(popup, text="Test Name:", font=("Poppins", 10), bg="white").pack(anchor="w", padx=30, pady=(5, 0))
-        name_entry = tk.Entry(popup, font=("Poppins", 10), width=35)
-        name_entry.pack(pady=5)
-
-        # === Notes ===
-        tk.Label(popup, text="Notes (optional):", font=("Poppins", 10), bg="white").pack(anchor="w", padx=30, pady=(5, 0))
-        notes_entry = tk.Entry(popup, font=("Poppins", 10), width=35)
-        notes_entry.pack(pady=5)
-
-        # === Start Time ===
-        tk.Label(popup, text="Start Time (HH:MM:SS):", font=("Poppins", 10), bg="white").pack(anchor="w", padx=30, pady=(10, 0))
-        start_entry = tk.Entry(popup, font=("Poppins", 10), width=35)
-        start_entry.pack(pady=5)
-
-        # === End Time ===
-        tk.Label(popup, text="End Time (HH:MM:SS):", font=("Poppins", 10), bg="white").pack(anchor="w", padx=30, pady=(5, 0))
-        end_entry = tk.Entry(popup, font=("Poppins", 10), width=35)
-        end_entry.pack(pady=5)
-
-        # === Submit Button ===
-        def start_logging():
-            def hms_to_seconds(hms_str):
-                h, m, s = map(int, hms_str.split(":"))
-                return h * 3600 + m * 60 + s
-            
-            def valid_time_format(s):
-                try:
-                    h, m, s = map(int, s.split(":"))
-                    return True
-                except:
-                    return False
-            
-            test_name = name_entry.get().strip()
-            notes = notes_entry.get().strip()
-            start_time = start_entry.get().strip()
-            end_time = end_entry.get().strip()
-            start_seconds = hms_to_seconds(start_time)
-            end_seconds = hms_to_seconds(end_time)
-
-            if not test_name or not start_time or not end_time:
-                messagebox.showerror("Missing Info", "Please fill in test name, start time, and end time.")
-                return
-
-            if not (valid_time_format(start_time) and valid_time_format(end_time)):
-                messagebox.showerror("Invalid Format", "Times must be in HH:MM:SS format.")
-                return
-
-            # === Format duration from start and end
-            from datetime import timedelta
-
-            def parse_time(tstr):
-                h, m, s = map(int, tstr.split(":"))
-                return timedelta(hours=h, minutes=m, seconds=s)
-
-            t1 = parse_time(start_time)
-            t2 = parse_time(end_time)
-
-            if t2 <= t1:
-                messagebox.showerror("Invalid Range", "End time must be after start time.")
-                return
-
-            duration_str = str(t2 - t1)
-
-            # === Add to table
-            from datetime import datetime
-            date_str = datetime.now().strftime("%Y-%m-%d")
-            serial = len(self.test_table.get_children()) + 1
-
-            row = (serial, test_name, "Chamber", date_str, duration_str, notes, start_seconds)
-            tag = "row_even" if serial % 2 == 0 else "row_odd"
-            self.test_table.insert("", "end", values=row, tags=(tag,))
-
-            popup.destroy()
-            messagebox.showinfo("Logged", f"New log '{test_name}' added.")
-        
-        tk.Label(popup, text="").pack()  # spacer
-        tk.Button(popup, text="Submit", font=("Poppins", 10, "bold"), command=start_logging).pack(pady=20)
-        popup.update_idletasks()  # force geometry recalculation
-
-        # === Dynamically resize popup to fit all widgets ===
-        popup.update_idletasks()
-        popup.geometry(f"420x{popup.winfo_reqheight()}")  # force height = content height
-        popup.resizable(False, False)
-    
-    def parse_duration(duration_str):
-        try:
-            parts = duration_str.strip().split(":")
-            if len(parts) != 3:
-                return None
-            h, m, s = map(int, parts)
-            if not (0 <= m < 60 and 0 <= s < 60):
-                return None
-            return timedelta(hours=h, minutes=m, seconds=s)
-        except:
-            return None

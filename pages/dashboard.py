@@ -35,7 +35,7 @@ class SystemMetrics(tk.Canvas):
 
         self.place(x=0, y=0)
 
-    def embed_metrics_frame_dynamic(self, temperature, pressure):
+    def embed_metrics_frame_dynamic(self, temperature, pressure, leak_slope):
         for widget in self.winfo_children():
             widget.destroy()
 
@@ -48,8 +48,11 @@ class SystemMetrics(tk.Canvas):
         self.draw_metric(frame, f"{pressure:.2f} Psi", "#F58F8F", "#FFD3D3", pressure, 155, 30, 80)
         self.draw_metric(frame, f"{temperature:.2f} °C", "#5B93F5", "#A9D0FF", temperature, 50, 30, 150)
 
+        scaled_leak = abs(leak_slope) * 1e6
+        leak_rate_str = f"{scaled_leak:.2f} x 10⁻⁶"
+
         tk.Label(frame, text="Leak Rate:", font=('Poppins', 14, 'bold'), bg='white').place(x=90, y=230)
-        tk.Label(frame, text="2.1 x 10⁻⁹", font=('Poppins', 14, 'bold'), fg='green', bg='white').place(x=100, y=265)
+        tk.Label(frame, text=leak_rate_str, font=('Poppins', 14, 'bold'), fg='green', bg='white').place(x=100, y=265)
 
         tk.Label(frame, text="Status:", font=('Poppins', 14, 'bold'), bg='white').place(x=310, y=230)
         tk.Label(frame, text="OK", font=('Poppins', 16, 'bold'), fg='green', bg='white').place(x=390, y=230)
@@ -197,8 +200,10 @@ class ChamberData(tk.Canvas):
         frame.place(x=0, y=0)
         tk.Label(frame, text="Chamber Data", font=('Poppins', 16, 'bold'), bg='white').place(x=25, y=18)
 
+        slope = 0.0
         if len(time_data) >= 2:
             z = np.polyfit(time_data, pressure_data, 1)
+            slope = z[0]  # slope of the line
             trendline = np.poly1d(z)
             trend_y = trendline(time_data)
         else:
@@ -217,6 +222,8 @@ class ChamberData(tk.Canvas):
         canvas = FigureCanvasTkAgg(fig, master=frame)
         canvas.draw()
         canvas.get_tk_widget().place(x=20, y=60, width=self.width - 40, height=self.height - 80)
+
+        return slope
 
 # === SystemStatus ===
 class SystemStatus(tk.Canvas):
@@ -344,8 +351,8 @@ class DashboardPage(tk.Frame):
         pressure = self.controller.latest_pressure
 
         self.chamber_data.update_graph(time_data, pressure_data)
-        self.system_metrics.embed_metrics_frame_dynamic(temperature, pressure)  # For Dashboard
-        #self.target_chamber.embed_vertical_metrics(temperature, pressure)       # For LiveData
+        leak_rate = self.calculate_leak_rate(time_data, pressure_data)
+        self.system_metrics.embed_metrics_frame_dynamic(temperature, pressure, leak_rate)
 
         self.after(5000, self.update_live_data)
 
@@ -359,3 +366,22 @@ class DashboardPage(tk.Frame):
         self.system_metrics.embed_metrics_frame_dynamic(temperature, pressure)
 
         self.after(5000, self.update_dashboard_data)
+
+    def calculate_leak_rate(self, time_data, pressure_data):
+        if len(time_data) < 2:
+            return 0.0  # Not enough data
+
+        volume_m3 = 5e-6  # 5 mL in cubic meters
+        leak_rates = []
+
+        for i in range(1, len(time_data)):
+            dt = time_data[i] - time_data[i - 1]
+            dp = pressure_data[i] - pressure_data[i - 1]
+            if dt != 0:
+                leak_rate = (dp / dt) * volume_m3
+                leak_rates.append(leak_rate)
+
+        if leak_rates:
+            return sum(leak_rates) / len(leak_rates)
+        return 0.0
+
